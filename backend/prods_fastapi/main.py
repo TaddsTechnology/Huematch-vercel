@@ -5,7 +5,7 @@ import json
 import math
 import os
 from typing import List, Optional
-from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
+from .color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
 from pathlib import Path
 import re
 import numpy as np

@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: ai-fashion-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/venv  # Exclude venv from bind mount
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - ai-fashion-network
+
+  frontend:
+    build: ./frontend
+    container_name: ai-fashion-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Exclude node_modules from bind mount
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ai-fashion-network
+
+networks:
+  ai-fashion-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+  frontend_data:
