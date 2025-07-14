@@ -577,7 +577,7 @@ class ProductService:
         skin_tone = user_profile.get('skin_tone')
         seasonal_type = user_profile.get('seasonal_type')
         preferred_brands = user_profile.get('preferred_brands', [])
-        budget_range = user_profile.get('budget_range', (0, 1000))
+        budget_range = user_profile.get('budget_range', (0, 2000))  # Increased budget range
         
         # Get color recommendations
         if skin_tone:
@@ -586,7 +586,7 @@ class ProductService:
                 SeasonalType(seasonal_type) if seasonal_type and isinstance(seasonal_type, str) else seasonal_type
             )
             
-            # Filter products based on recommendations
+            # Use more lenient filtering to show more products
             filters = ProductFilter(
                 brand=preferred_brands if preferred_brands else None,
                 price_min=budget_range[0],
@@ -596,11 +596,20 @@ class ProductService:
             
             filtered_products = self.filter_products(products_df, filters)
             
+            # If we have too few products, relax the filters
+            if len(filtered_products) < 50:
+                relaxed_filters = ProductFilter(
+                    price_min=0,
+                    price_max=budget_range[1] * 2,  # Double the budget range
+                    skin_tone=SkinTone(skin_tone) if isinstance(skin_tone, str) else skin_tone
+                )
+                filtered_products = self.filter_products(products_df, relaxed_filters)
+            
             # Score and rank products
             scored_products = self._score_products(filtered_products, user_profile, color_rec)
             
-            # Return top recommendations
-            recommendations = scored_products.head(20).to_dict('records')
+            # Return more recommendations
+            recommendations = scored_products.head(50).to_dict('records')
         
         return recommendations
     

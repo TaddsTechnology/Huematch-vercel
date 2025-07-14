@@ -26,10 +26,10 @@ interface CategoryType {
 }
 
 interface SkinAnalysisResult {
-  0: { label: string; confidences: null };
-  1: string;  // First hex color
-  2: string;  // Second hex color
-  length: number;
+  monk_skin_tone: string;
+  monk_hex: string;
+  derived_hex_code: string;
+  dominant_rgb: number[];
 }
 
 const DemoTryOn = () => {
@@ -53,8 +53,8 @@ const DemoTryOn = () => {
       const parsedData = JSON.parse(analysisData) as SkinAnalysisResult;
       setSkinAnalysis(parsedData);
       
-      if (parsedData?.[1]) {
-        const recommendations = getRecommendedColors(parsedData[1]);
+      if (parsedData?.monk_hex) {
+        const recommendations = getRecommendedColors(parsedData.monk_hex);
         setColorRecommendations(recommendations);
       }
     }
@@ -99,7 +99,7 @@ const DemoTryOn = () => {
   };
 
   // Get makeup colors based on skin analysis
-  const makeupColors = skinAnalysis ? getMakeupColors(skinAnalysis[0].label.split(' ')[1]) : null;
+  const makeupColors = skinAnalysis ? getMakeupColors(skinAnalysis.monk_skin_tone.replace('Monk', '').replace('monk', '')) : null;
 
   const categories: CategoryType[] = makeupColors ? [
     {
@@ -193,10 +193,10 @@ const DemoTryOn = () => {
                     <div className="space-y-4">
                       <div className="bg-purple-50 p-4 rounded-xl">
                         <p className="text-sm text-gray-600">Detected Skin Tone</p>
-                        <p className="font-medium text-gray-900">{skinAnalysis[0].label}</p>
+                        <p className="font-medium text-gray-900">{skinAnalysis.monk_skin_tone}</p>
                       </div>
                       <div className="flex gap-4">
-                        {[skinAnalysis[1], skinAnalysis[2]].map((color, idx) => (
+                        {[skinAnalysis.monk_hex, skinAnalysis.derived_hex_code].map((color, idx) => (
                           <div key={idx} className="flex-1 bg-gray-50 p-3 rounded-xl">
                             <div 
                               className="w-full h-12 rounded-lg mb-2"

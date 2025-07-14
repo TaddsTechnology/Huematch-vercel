@@ -5,7 +5,7 @@ import json
 import math
 import os
 from typing import List, Optional
-from .color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
+from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
 from pathlib import Path
 import re
 import numpy as np
@@ -81,6 +81,173 @@ def color_distance(color1, color2):
     # Calculate Euclidean distance
     return math.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(rgb1, rgb2)))
 
+def advanced_color_distance(color1, color2, method='euclidean'):
+    """Calculate color distance using various methods for better color matching."""
+    def hex_to_rgb(hex_color):
+        hex_color = hex_color.replace('#', '')
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            return (r, g, b)
+        except (ValueError, IndexError):
+            return (0, 0, 0)
+    
+    def rgb_to_lab(rgb):
+        """Convert RGB to LAB color space for better perceptual distance."""
+        r, g, b = [x / 255.0 for x in rgb]
+        
+        # Convert to XYZ first
+        def gamma_correction(c):
+            return pow((c + 0.055) / 1.055, 2.4) if c > 0.04045 else c / 12.92
+        
+        r, g, b = map(gamma_correction, [r, g, b])
+        
+        # Observer = 2°, Illuminant = D65
+        x = r * 0.4124 + g * 0.3576 + b * 0.1805
+        y = r * 0.2126 + g * 0.7152 + b * 0.0722
+        z = r * 0.0193 + g * 0.1192 + b * 0.9505
+        
+        # Convert XYZ to LAB
+        def f(t):
+            return pow(t, 1/3) if t > 0.008856 else (7.787 * t + 16/116)
+        
+        x, y, z = x / 0.95047, y / 1.00000, z / 1.08883
+        fx, fy, fz = map(f, [x, y, z])
+        
+        L = 116 * fy - 16
+        a = 500 * (fx - fy)
+        b = 200 * (fy - fz)
+        
+        return (L, a, b)
+    
+    rgb1 = hex_to_rgb(color1)
+    rgb2 = hex_to_rgb(color2)
+    
+    if method == 'euclidean':
+        return math.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(rgb1, rgb2)))
+    elif method == 'lab':
+        lab1 = rgb_to_lab(rgb1)
+        lab2 = rgb_to_lab(rgb2)
+        return math.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(lab1, lab2)))
+    elif method == 'weighted':
+        # Weighted RGB distance considering human perception
+        r1, g1, b1 = rgb1
+        r2, g2, b2 = rgb2
+        return math.sqrt(2 * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + 3 * (b1 - b2) ** 2)
+    else:
+        return color_distance(color1, color2)
+
+def calculate_product_score(product, user_preferences, skin_tone=None, color_method='lab'):
+    """Calculate a comprehensive score for product recommendations."""
+    score = 0.0
+    max_score = 0.0
+    
+    # Brand preference scoring (weight: 25%)
+    brand_weight = 0.25
+    if 'preferred_brands' in user_preferences and user_preferences['preferred_brands']:
+        max_score += brand_weight
+        product_brand = str(product.get('brand', '')).lower()
+        preferred_brands = [b.lower() for b in user_preferences['preferred_brands']]
+        if any(brand in product_brand for brand in preferred_brands):
+            score += brand_weight
+    
+    # Price range scoring (weight: 20%)
+    price_weight = 0.20
+    if 'price_range' in user_preferences and user_preferences['price_range']:
+        max_score += price_weight
+        product_price = str(product.get('price', ''))
+        # Extract numeric price
+        price_match = re.search(r'\d+(?:\.\d+)?', product_price)
+        if price_match:
+            product_price_val = float(price_match.group())
+            min_price = user_preferences['price_range'].get('min', 0)
+            max_price = user_preferences['price_range'].get('max', 1000)
+            
+            if min_price <= product_price_val <= max_price:
+                score += price_weight
+            else:
+                # Partial score based on how close it is to the range
+                if product_price_val < min_price:
+                    proximity = 1 - min((min_price - product_price_val) / min_price, 1)
+                else:
+                    proximity = 1 - min((product_price_val - max_price) / max_price, 1)
+                score += price_weight * proximity
+    
+    # Color matching scoring (weight: 30%)
+    color_weight = 0.30
+    if skin_tone and 'baseColour' in product:
+        max_score += color_weight
+        product_color = str(product.get('baseColour', ''))
+        
+        # Get seasonal type from skin tone
+        seasonal_type = None
+        if skin_tone in monk_to_seasonal:
+            seasonal_type = monk_to_seasonal[skin_tone]
+        
+        # Check if color is in recommended palette
+        if seasonal_type and seasonal_type in seasonal_palettes:
+            recommended_colors = seasonal_palettes[seasonal_type]
+            if isinstance(recommended_colors, list):
+                if any(color.lower() in product_color.lower() for color in recommended_colors):
+                    score += color_weight
+            elif isinstance(recommended_colors, dict) and 'recommended' in recommended_colors:
+                if any(color.lower() in product_color.lower() for color in recommended_colors['recommended']):
+                    score += color_weight
+    
+    # Product type preference scoring (weight: 15%)
+    type_weight = 0.15
+    if 'preferred_types' in user_preferences and user_preferences['preferred_types']:
+        max_score += type_weight
+        product_type = str(product.get('Product Type', '') or product.get('product_type', '')).lower()
+        preferred_types = [t.lower() for t in user_preferences['preferred_types']]
+        if any(ptype in product_type for ptype in preferred_types):
+            score += type_weight
+    
+    # Diversity bonus (weight: 10%)
+    diversity_weight = 0.10
+    max_score += diversity_weight
+    # This would be calculated based on how different this product is from previously recommended items
+    # For now, we'll give a base diversity score
+    score += diversity_weight * 0.5
+    
+    # Normalize score to 0-1 range
+    return score / max_score if max_score > 0 else 0.0
+
+def get_diverse_recommendations(products, user_preferences, skin_tone=None, limit=20):
+    """Get diverse product recommendations using advanced scoring."""
+    # Calculate scores for all products
+    scored_products = []
+    for product in products:
+        score = calculate_product_score(product, user_preferences, skin_tone)
+        scored_products.append((product, score))
+    
+    # Sort by score descending
+    scored_products.sort(key=lambda x: x[1], reverse=True)
+    
+    # Apply diversity filter to avoid too similar products
+    diverse_products = []
+    seen_categories = set()
+    seen_brands = set()
+    
+    for product, score in scored_products:
+        if len(diverse_products) >= limit:
+            break
+            
+        category = str(product.get('Product Type', '') or product.get('product_type', '')).lower()
+        brand = str(product.get('brand', '')).lower()
+        
+        # Limit products per category and brand for diversity
+        category_count = sum(1 for p in diverse_products if 
+                           str(p.get('Product Type', '') or p.get('product_type', '')).lower() == category)
+        brand_count = sum(1 for p in diverse_products if 
+                         str(p.get('brand', '')).lower() == brand)
+        
+        if category_count < 3 and brand_count < 2:  # Max 3 per category, 2 per brand
+            diverse_products.append(product)
+    
+    return diverse_products
+
 # Load data files with fallback options
 def load_data_file(primary_path, fallback_path, default_df=None):
     """Load a data file with fallback options."""
@@ -131,6 +298,13 @@ df_color_suggestions = load_data_file(
     "processed_data/color_suggestions.csv",
     "color_suggestions.csv",
     pd.DataFrame(columns=["skin_tone", "suitable_colors"])
+)
+
+# Load combined outfits products
+df_combined_outfits = load_data_file(
+    "processed_data/all_combined_outfits.csv",
+    "../processed_data/all_combined_outfits.csv",
+    pd.DataFrame(columns=["brand", "product_name", "price", "gender", "image_url", "base_colour", "product_type", "sub_category", "master_category", "source"])
 )
 
 @app.get("/")
@@ -198,6 +372,21 @@ def get_apparel(
                 'price': row.get('Price', ''),
                 'images': row.get('Image URL', ''),
                 'product_name': row.get('Product Name', '')
+            })
+    
+    # Add combined outfits products - Always include ALL products from combined CSV
+    if not df_combined_outfits.empty:
+        for _, row in df_combined_outfits.iterrows():
+            outfit_products.append({
+                'brand': row.get('brand', 'Fashion Brand'),
+                'price': row.get('price', ''),
+                'images': row.get('image_url', ''),
+                'product_name': row.get('product_name', ''),
+                'baseColour': row.get('base_colour', ''),
+                'gender': row.get('gender', ''),
+                'masterCategory': row.get('master_category', ''),
+                'Product Type': row.get('product_type', ''),
+                'source': row.get('source', 'combined')
             })
     
     # If we still don't have enough products, use the apparel dataframe as fallback
@@ -307,6 +496,20 @@ async def get_random_outfits(limit: int = Query(default=8)):
         }
     except Exception as e:
         print(f"Error: {str(e)}")
+        return {"error": str(e)}
+
+# Endpoint to fetch products from combined outfits dataset
+@app.get("/api/combined-outfits")
+async def get_combined_outfits():
+    """Get all combined outfit products."""
+    try:
+        products = df_combined_outfits.to_dict(orient="records")
+        return {
+            "data": products,
+            "total_items": len(products)
+        }
+    except Exception as e:
+        print(f"Error fetching combined outfits: {str(e)}")
         return {"error": str(e)}
 
 # **H&M Products API**

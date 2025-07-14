@@ -484,11 +484,11 @@ const DemoRecommendations = () => {
                       <div>
                         <h3 className="text-lg font-semibold">Your Skin Tone</h3>
                         <p className="text-gray-500">{skinHex}</p>
-                        {colorRecommendations?.monk_skin_tone && (
-                          <p className="text-purple-600 font-medium">{colorRecommendations.monk_skin_tone} Skin Tone</p>
-                        )}
                         {colorRecommendations?.seasonal_type && (
-                          <p className="text-purple-600 font-medium">{colorRecommendations.seasonal_type} Type</p>
+                          <p className="text-purple-600 font-medium">{colorRecommendations.seasonal_type} Color Type</p>
+                        )}
+                        {colorRecommendations?.monk_skin_tone && (
+                          <p className="text-gray-600 text-sm">{colorRecommendations.monk_skin_tone}</p>
                         )}
                       </div>
                     </div>

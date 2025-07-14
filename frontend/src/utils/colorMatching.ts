@@ -256,25 +256,21 @@ const seasonalColorPalettes = {
 
 // Map Monk skin tone to seasonal color type
 function getSeasonalTypeFromMonkTone(monkTone: number): string {
-  if (monkTone <= 2) {
-    return 'Light Spring';
-  } else if (monkTone <= 3) {
-    return 'Clear Spring';
-  } else if (monkTone === 4) {
-    return 'Warm Spring';
-  } else if (monkTone === 5) {
-    return 'Soft Autumn';
-  } else if (monkTone === 6) {
-    return 'Warm Autumn';
-  } else if (monkTone === 7) {
-    return 'Deep Autumn';
-  } else if (monkTone === 8) {
-    return 'Deep Winter';
-  } else if (monkTone === 9) {
-    return 'Cool Winter';
-  } else {
-    return 'Clear Winter';
-  }
+  // Map according to the backend mapping for consistency
+  const mapping: { [key: number]: string } = {
+    1: 'Light Spring',
+    2: 'Light Spring',
+    3: 'Clear Spring',
+    4: 'Warm Spring',
+    5: 'Soft Autumn',
+    6: 'Warm Autumn',
+    7: 'Deep Autumn',
+    8: 'Deep Winter',
+    9: 'Cool Winter',
+    10: 'Clear Winter'
+  };
+  
+  return mapping[monkTone] || 'Clear Spring';
 }
 
 function findClosestMonkTone(hexColor: string): number {

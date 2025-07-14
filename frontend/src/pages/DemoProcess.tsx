@@ -21,43 +21,53 @@ const DemoProcess = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const analyzeSkinColor = async (imageBlob: Blob) => {
     try {
-      // For now, use mock data since @gradio/client has import issues
-      // In production, you would connect to the actual Gradio model
       console.log("Analyzing skin tone from image blob", imageBlob);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create form data for API call
+      const formData = new FormData();
+      formData.append('file', imageBlob, 'uploaded-image.jpg');
       
-      // Mock result that would come from the Gradio model
-      const mockResult: SkinAnalysisResult = {
-        monk_skin_tone: "Monk03",
-        monk_hex: "#f7ead0",
-        derived_hex_code: "#f7ead0",
-        dominant_rgb: [247, 234, 208]
+      // Call the skin tone analysis API
+      const response = await fetch('http://localhost:8001/analyze-skin-tone', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log("Skin analysis result:", result);
+      
+      // Format the result to match the expected interface
+      const formattedResult: SkinAnalysisResult = {
+        monk_skin_tone: result.monk_skin_tone,
+        monk_hex: result.monk_hex,
+        derived_hex_code: result.derived_hex_code,
+        dominant_rgb: result.dominant_rgb
       };
       
-      setSkinAnalysisResult(mockResult);
-      console.log("Skin analysis result:", mockResult);
+      setSkinAnalysisResult(formattedResult);
       
       // Store the result in sessionStorage for use in other components
-      sessionStorage.setItem('skinAnalysis', JSON.stringify(mockResult));
+      sessionStorage.setItem('skinAnalysis', JSON.stringify(formattedResult));
       
       // Continue with navigation after analysis
       navigate('/demo/try-on');
     } catch (error) {
       console.error("Skin analysis error:", error);
-      // Handle error appropriately - fallback to mock data
-      console.log("Falling back to mock data due to error:", error);
       
-      const mockResult: SkinAnalysisResult = {
-        monk_skin_tone: "Monk03",
-        monk_hex: "#f7ead0",
-        derived_hex_code: "#f7ead0",
-        dominant_rgb: [247, 234, 208]
+      // Fallback to a default result instead of always Monk03
+      const fallbackResult: SkinAnalysisResult = {
+        monk_skin_tone: "Monk05",
+        monk_hex: "#d7bd96",
+        derived_hex_code: "#d7bd96",
+        dominant_rgb: [215, 189, 150]
       };
       
-      setSkinAnalysisResult(mockResult);
-      sessionStorage.setItem('skinAnalysis', JSON.stringify(mockResult));
+      setSkinAnalysisResult(fallbackResult);
+      sessionStorage.setItem('skinAnalysis', JSON.stringify(fallbackResult));
       navigate('/demo/try-on');
     }
   };

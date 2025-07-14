@@ -1,5 +1,126 @@
 {
-  "Spring": {
+  "Special Occasions": {
+    "Holiday Glam": {
+      "recommended": [
+        {"color": "#D4AF37", "name": "Gold"},
+        {"color": "#C0C0C0", "name": "Silver"},
+        {"color": "#8B0000", "name": "Dark Red"}
+      ],
+      "avoid": [
+        {"color": "#F5F5F5", "name": "Ivory"}
+      ]
+    },
+    "Festival Brights": {
+      "recommended": [
+        {"color": "#FF69B4", "name": "Pink"},
+        {"color": "#FFD700", "name": "Sunshine Yellow"}
+      ],
+      "avoid": [
+        {"color": "#8B4513", "name": "Saddle Brown"}
+      ]
+    },
+    "Evening Wear": {
+      "recommended": [
+        {"color": "#4B0082", "name": "Indigo"},
+        {"color": "#2F4F4F", "name": "Dark Slate Gray"}
+      ],
+      "avoid": [
+        {"color": "#FFFAFA", "name": "Snow"}
+      ]
+    },
+    "Bridal": {
+      "recommended": [
+        {"color": "#FFFFFF", "name": "White"},
+        {"color": "#FFE4E1", "name": "Rose White"}
+      ],
+      "avoid": [
+        {"color": "#A9A9A9", "name": "Dark Gray"}
+      ]
+    }
+  },
+  "Material and Texture-Based": {
+    "Metallics": {
+      "recommended": [
+        {"color": "#B87333", "name": "Copper"},
+        {"color": "#FFD700", "name": "Gold"}
+      ],
+      "avoid": [
+        {"color": "#8B4513", "name": "Saddle Brown"}
+      ]
+    },
+    "Neon": {
+      "recommended": [
+        {"color": "#39FF14", "name": "Neon Green"},
+        {"color": "#FF073A", "name": "Neon Red"}
+      ],
+      "avoid": [
+        {"color": "#696969", "name": "Dim Gray"}
+      ]
+    }
+  },
+  "Cultural and Regional": {
+    "Japanese Sakura": {
+      "recommended": [
+        {"color": "#FFD1DC", "name": "Cherry Blossom Pink"},
+        {"color": "#FFC0CB", "name": "Pink"}
+      ],
+      "avoid": [
+        {"color": "#8B4513", "name": "Saddle Brown"}
+      ]
+    },
+    "Mediterranean Summer": {
+      "recommended": [
+        {"color": "#FFD700", "name": "Sunny Yellow"},
+        {"color": "#00BFFF", "name": "Deep Sky Blue"}
+      ],
+      "avoid": [
+        {"color": "#696969", "name": "Dim Gray"}
+      ]
+    }
+  },
+  "Color Harmony-Based": {
+    "Triadic Schemes": {
+      "recommended": [
+        {"color": "#F4A261", "name": "Sandy Brown"},
+        {"color": "#2A9D8F", "name": "Jungle Green"}
+      ],
+      "avoid": [
+        {"color": "#8A2BE2", "name": "Blue Violet"}
+      ]
+    },
+    "Complementary Schemes": {
+      "recommended": [
+        {"color": "#FF4500", "name": "Orange Red"},
+        {"color": "#1E90FF", "name": "Dodger Blue"}
+      ],
+      "avoid": [
+        {"color": "#A52A2A", "name": "Brown"}
+      ]
+    }
+  },
+  "Trending Fashion Palettes": {
+    "Vibrant Neons": {
+      "recommended": [
+        {"color": "#FF1493", "name": "Deep Pink"},
+        {"color": "#00FF00", "name": "Lime"}
+      ],
+      "avoid": [
+        {"color": "#2F4F4F", "name": "Dark Slate Gray"}
+      ]
+    },
+    "Pastels": {
+      "recommended": [
+        {"color": "#B0E0E6", "name": "Powder Blue"},
+        {"color": "#FFE4E1", "name": "Misty Rose"}
+      ],
+      "avoid": [
+        {"color": "#2F4F4F", "name": "Dark Slate Gray"}
+      ]
+    }
+  }
+
+},
+"Spring": {
     "recommended": [
       {
         "color": "#FF6B6B",
