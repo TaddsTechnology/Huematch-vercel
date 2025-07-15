@@ -1,6 +1,7 @@
-// import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import AuthModal from '../components/AuthModal';
 import { 
   ArrowRight, 
   Sparkle, 
@@ -73,6 +74,8 @@ const galleryImages = [
 ];
 
 const LandingPage = () => {
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-100 via-pink-50 to-white">
       <Navbar />
@@ -199,6 +202,189 @@ const LandingPage = () => {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Premium Features Preview Section */}
+      <section className="py-24 bg-gradient-to-br from-purple-50 via-pink-50 to-white relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-pink-200 to-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-72 h-72 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center justify-center p-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full mb-6">
+              <Sparkle className="h-6 w-6 text-purple-600 mr-2" />
+              <span className="text-sm font-semibold text-purple-700 uppercase tracking-wide">Premium Experience</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-6">
+              Elevate Your Style Journey
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Start with our free color analysis, then unlock personalized recommendations, shopping guides, and advanced style matching.
+            </p>
+          </div>
+
+          {/* Features Comparison */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+            {/* Free Features */}
+            <div className="bg-white/80 backdrop-blur rounded-3xl p-8 shadow-lg border border-purple-100 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Free</h3>
+                <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                  Always Free
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Basic skin tone analysis</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Color palette generation</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Seasonal color matching</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Premium Features */}
+            <div className="bg-gradient-to-br from-white to-purple-50 rounded-3xl p-8 shadow-xl border-2 border-purple-200 hover:shadow-2xl transition-all duration-300 relative overflow-hidden transform scale-105">
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-bl-2xl text-sm font-bold">
+                PREMIUM
+              </div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Premium</h3>
+                <div className="px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full text-sm font-semibold">
+                  $9.99/month
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <Star className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-gray-600">Personalized product recommendations</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <Star className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-gray-600">Advanced makeup suggestions</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <Star className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-gray-600">Style preference learning</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <Star className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-gray-600">Shopping links & price comparisons</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <Star className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-gray-600">Color history & favorites</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAuthModal(true)}
+                className="w-full mt-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-6 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                Upgrade to Premium
+              </button>
+            </div>
+
+            {/* Enterprise Features */}
+            <div className="bg-white/80 backdrop-blur rounded-3xl p-8 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
+                <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-semibold">
+                  Contact Us
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Team collaboration tools</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Brand customization</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">API access & integrations</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Priority support</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600">Analytics & reporting</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trust Indicators */}
+          <div className="text-center">
+            <div className="inline-flex items-center space-x-8 bg-white/80 backdrop-blur rounded-full px-8 py-4 shadow-lg">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">30-day money-back guarantee</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Cancel anytime</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Secure payments</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -401,9 +587,16 @@ const LandingPage = () => {
 
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
             <p>© 2023 HueMatch. All rights reserved.</p>
+            <p className="text-xs mt-2 opacity-75">
+              We use uploaded data to improve our AI recommendations. 
+              <a href="#privacy" className="hover:text-pink-400 underline ml-1">Privacy Policy</a>
+            </p>
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 };
