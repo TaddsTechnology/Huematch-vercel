@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ImageCapture from '../components/ImageCapture';
-import { Camera, Shield, Image, RefreshCw } from 'lucide-react';
+import { Camera, Shield, Image, RefreshCw, Sparkle } from 'lucide-react';
 // import { Client } from "@gradio/client"; // Use dynamic import instead
 
 // Add interface at the top of the file
@@ -28,7 +28,7 @@ const DemoProcess = () => {
       formData.append('file', imageBlob, 'uploaded-image.jpg');
       
       // Call the skin tone analysis API
-      const response = await fetch('http://localhost:8001/analyze-skin-tone', {
+      const response = await fetch('http://localhost:8000/analyze-skin-tone', {
         method: 'POST',
         body: formData,
       });
@@ -206,15 +206,78 @@ const DemoProcess = () => {
 
         {/* Loading Overlay */}
         {isAnalyzing && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl animate-fadeIn">
-              <RefreshCw className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-6" />
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2 text-center">
-                Analyzing your skin tone
-              </h3>
-              <p className="text-gray-600 text-center">
-                Our AI is working its magic to find your perfect color matches
-              </p>
+          <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-black/30 backdrop-blur-md z-50 flex items-center justify-center">
+            <div className="bg-gradient-to-br from-white/95 to-purple-50/95 backdrop-blur-sm rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl border border-purple-100/50 relative overflow-hidden">
+              {/* Background Animation */}
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-200/20 via-pink-200/20 to-purple-200/20 animate-pulse"></div>
+              
+              {/* Animated Color Swatches */}
+              <div className="relative mb-8">
+                <div className="flex justify-center items-center space-x-2 mb-4">
+                  {/* Color Swatch 1 */}
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 shadow-lg animate-bounce" style={{animationDelay: '0s'}}></div>
+                    <div className="absolute inset-0 w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-ping opacity-75"></div>
+                  </div>
+                  
+                  {/* Color Swatch 2 */}
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 shadow-lg animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    <div className="absolute inset-0 w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 animate-ping opacity-75" style={{animationDelay: '0.2s'}}></div>
+                  </div>
+                  
+                  {/* Color Swatch 3 */}
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                    <div className="absolute inset-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 animate-ping opacity-75" style={{animationDelay: '0.4s'}}></div>
+                  </div>
+                  
+                  {/* Color Swatch 4 */}
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 shadow-lg animate-bounce" style={{animationDelay: '0.6s'}}></div>
+                    <div className="absolute inset-0 w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 animate-ping opacity-75" style={{animationDelay: '0.6s'}}></div>
+                  </div>
+                  
+                  {/* Color Swatch 5 */}
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-pink-400 shadow-lg animate-bounce" style={{animationDelay: '0.8s'}}></div>
+                    <div className="absolute inset-0 w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-pink-400 animate-ping opacity-75" style={{animationDelay: '0.8s'}}></div>
+                  </div>
+                </div>
+                
+                {/* Animated Progress Bar */}
+                <div className="w-full bg-gradient-to-r from-purple-100 via-pink-100 to-purple-100 rounded-full h-1 overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse" style={{
+                    width: '100%',
+                    background: 'linear-gradient(90deg, #a855f7, #ec4899, #a855f7)',
+                    backgroundSize: '200% 100%',
+                    animation: 'gradientShift 2s ease-in-out infinite'
+                  }}></div>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="relative text-center">
+                <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full mb-4">
+                  <Sparkle className="h-6 w-6 text-purple-600 mr-2 animate-pulse" />
+                  <span className="text-sm font-semibold text-purple-700 uppercase tracking-wide">AI Analysis</span>
+                </div>
+                
+                <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-3">
+                  Discovering Your Perfect Colors
+                </h3>
+                
+                <p className="text-gray-600 mb-4 leading-relaxed">
+                  Our AI is analyzing your unique skin tone to create your personalized color palette
+                </p>
+                
+                {/* Animated Dots */}
+                <div className="flex justify-center space-x-1">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
+                  <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                </div>
+              </div>
             </div>
           </div>
         )}

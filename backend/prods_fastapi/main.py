@@ -1,14 +1,20 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import json
 import math
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
 from pathlib import Path
 import re
 import numpy as np
+import cv2
+from webcolors import hex_to_rgb, rgb_to_hex
+import io
+from PIL import Image
+import logging
+import random
 
 app = FastAPI()
 
@@ -57,6 +63,588 @@ monk_to_seasonal = {
     "Monk09": "Cool Winter",
     "Monk10": "Clear Winter"
 }
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Monk skin tone scale for analysis
+MONK_SKIN_TONES = {
+    'Monk 1': '#f6ede4',
+    'Monk 2': '#f3e7db', 
+    'Monk 3': '#f7ead0',
+    'Monk 4': '#eadaba',
+    'Monk 5': '#d7bd96',
+    'Monk 6': '#a07e56',
+    'Monk 7': '#825c43',
+    'Monk 8': '#604134',
+    'Monk 9': '#3a312a',
+    'Monk 10': '#292420'
+}
+
+def apply_lighting_correction(image_array: np.ndarray) -> np.ndarray:
+    """
+    Apply advanced lighting correction using CLAHE and LAB color space
+    """
+    try:
+        # Convert to LAB color space for better lighting correction
+        lab_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
+        
+        # Split LAB channels
+        l_channel, a_channel, b_channel = cv2.split(lab_image)
+        
+        # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) to L channel
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l_channel_corrected = clahe.apply(l_channel)
+        
+        # Merge channels back
+        corrected_lab = cv2.merge([l_channel_corrected, a_channel, b_channel])
+        
+        # Convert back to RGB
+        corrected_rgb = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB)
+        
+        # Additional gamma correction for better exposure
+        gamma = 1.2  # Slightly brighten the image
+        corrected_rgb = np.power(corrected_rgb / 255.0, gamma) * 255.0
+        corrected_rgb = np.clip(corrected_rgb, 0, 255).astype(np.uint8)
+        
+        return corrected_rgb
+        
+    except Exception as e:
+        logger.warning(f"Lighting correction failed: {e}, using original image")
+        return image_array
+
+def apply_white_balance(image_array: np.ndarray) -> np.ndarray:
+    """
+    Apply simple white balance correction
+    """
+    try:
+        # Convert to float for calculations
+        image_float = image_array.astype(np.float64)
+        
+        # Calculate mean values for each channel
+        mean_r = np.mean(image_float[:, :, 0])
+        mean_g = np.mean(image_float[:, :, 1])
+        mean_b = np.mean(image_float[:, :, 2])
+        
+        # Calculate scaling factors
+        gray_world_mean = (mean_r + mean_g + mean_b) / 3
+        
+        # Apply white balance correction
+        if mean_r > 0:
+            image_float[:, :, 0] = image_float[:, :, 0] * (gray_world_mean / mean_r)
+        if mean_g > 0:
+            image_float[:, :, 1] = image_float[:, :, 1] * (gray_world_mean / mean_g)
+        if mean_b > 0:
+            image_float[:, :, 2] = image_float[:, :, 2] * (gray_world_mean / mean_b)
+        
+        # Clip values and convert back to uint8
+        balanced_image = np.clip(image_float, 0, 255).astype(np.uint8)
+        
+        return balanced_image
+        
+    except Exception as e:
+        logger.warning(f"White balance correction failed: {e}, using original image")
+        return image_array
+
+def apply_gentle_lighting_correction(image_array: np.ndarray) -> np.ndarray:
+    """
+    Apply gentle lighting correction optimized for lighter skin tones
+    """
+    try:
+        # Convert to LAB color space for better lighting correction
+        lab_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
+        
+        # Split LAB channels
+        l_channel, a_channel, b_channel = cv2.split(lab_image)
+        
+        # Apply gentler CLAHE for lighter skin tones
+        clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))  # Reduced clip limit
+        l_channel_corrected = clahe.apply(l_channel)
+        
+        # Merge channels back
+        corrected_lab = cv2.merge([l_channel_corrected, a_channel, b_channel])
+        
+        # Convert back to RGB
+        corrected_rgb = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB)
+        
+        # Gentler gamma correction for lighter skin tones
+        gamma = 1.1  # Less aggressive gamma correction
+        corrected_rgb = np.power(corrected_rgb / 255.0, gamma) * 255.0
+        corrected_rgb = np.clip(corrected_rgb, 0, 255).astype(np.uint8)
+        
+        return corrected_rgb
+        
+    except Exception as e:
+        logger.warning(f"Gentle lighting correction failed: {e}, using original image")
+        return image_array
+
+def apply_improved_white_balance(image_array: np.ndarray) -> np.ndarray:
+    """
+    Apply improved white balance correction with better handling of light skin tones
+    """
+    try:
+        # Convert to float for calculations
+        image_float = image_array.astype(np.float64)
+        
+        # Calculate mean values for each channel, excluding very dark and very bright pixels
+        # This helps with light skin tone detection
+        mask = (image_float[:, :, 0] > 30) & (image_float[:, :, 0] < 250) & \
+               (image_float[:, :, 1] > 30) & (image_float[:, :, 1] < 250) & \
+               (image_float[:, :, 2] > 30) & (image_float[:, :, 2] < 250)
+        
+        if np.sum(mask) > 0:
+            mean_r = np.mean(image_float[:, :, 0][mask])
+            mean_g = np.mean(image_float[:, :, 1][mask])
+            mean_b = np.mean(image_float[:, :, 2][mask])
+        else:
+            # Fallback to full image if mask is empty
+            mean_r = np.mean(image_float[:, :, 0])
+            mean_g = np.mean(image_float[:, :, 1])
+            mean_b = np.mean(image_float[:, :, 2])
+        
+        # Calculate scaling factors with gentle correction
+        gray_world_mean = (mean_r + mean_g + mean_b) / 3
+        
+        # Apply gentler white balance correction
+        correction_strength = 0.7  # Reduce correction strength for lighter skin tones
+        
+        if mean_r > 0:
+            factor_r = (gray_world_mean / mean_r - 1) * correction_strength + 1
+            image_float[:, :, 0] = image_float[:, :, 0] * factor_r
+        if mean_g > 0:
+            factor_g = (gray_world_mean / mean_g - 1) * correction_strength + 1
+            image_float[:, :, 1] = image_float[:, :, 1] * factor_g
+        if mean_b > 0:
+            factor_b = (gray_world_mean / mean_b - 1) * correction_strength + 1
+            image_float[:, :, 2] = image_float[:, :, 2] * factor_b
+        
+        # Clip values and convert back to uint8
+        balanced_image = np.clip(image_float, 0, 255).astype(np.uint8)
+        
+        return balanced_image
+        
+    except Exception as e:
+        logger.warning(f"Improved white balance correction failed: {e}, using original image")
+        return image_array
+
+def analyze_skin_tone_simple(image_array: np.ndarray) -> Dict:
+    """
+    Highly refined skin tone analysis with special optimization for very light skin tones
+    """
+    try:
+        # Step 1: Minimal processing for light skin tones to preserve true colors
+        processed_image = apply_minimal_processing(image_array)
+        
+        # Step 2: Advanced multi-method skin color extraction
+        skin_colors = extract_skin_colors_advanced(processed_image)
+        
+        # Step 3: Intelligent color analysis with light skin bias
+        final_color = analyze_colors_with_light_bias(skin_colors, processed_image)
+        
+        # Step 4: Enhanced Monk tone matching with light skin priority
+        closest_monk = find_closest_monk_tone_enhanced(final_color)
+        
+        # Step 5: Advanced confidence scoring
+        confidence = calculate_advanced_confidence(skin_colors, final_color)
+        
+        return {
+            'monk_skin_tone': closest_monk['monk_id'],
+            'monk_tone_display': closest_monk['monk_name'],
+            'monk_hex': closest_monk['monk_hex'],
+            'derived_hex_code': closest_monk['derived_hex'],
+            'dominant_rgb': final_color.astype(int).tolist(),
+            'confidence': confidence,
+            'success': True
+        }
+    
+    except Exception as e:
+        logger.error(f"Error in skin tone analysis: {e}")
+        return get_fallback_result()
+
+def apply_minimal_processing(image_array: np.ndarray) -> np.ndarray:
+    """
+    Apply minimal processing to preserve light skin tones
+    """
+    try:
+        # Very gentle processing only
+        processed = image_array.copy()
+        
+        # Only apply slight gamma correction if image is too dark
+        mean_brightness = np.mean(cv2.cvtColor(processed, cv2.COLOR_RGB2GRAY))
+        
+        if mean_brightness < 120:  # Only if image is quite dark
+            gamma = 1.05  # Very gentle gamma correction
+            processed = np.power(processed / 255.0, gamma) * 255.0
+            processed = np.clip(processed, 0, 255).astype(np.uint8)
+        
+        return processed
+        
+    except Exception as e:
+        logger.warning(f"Minimal processing failed: {e}, using original image")
+        return image_array
+
+def extract_skin_colors_advanced(image_array: np.ndarray) -> List[np.ndarray]:
+    """
+    Advanced skin color extraction with multiple sophisticated methods
+    """
+    skin_colors = []
+    h, w = image_array.shape[:2]
+    
+    # Method 1: Advanced HSV-based detection optimized for light skin
+    hsv = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
+    
+    # Highly optimized ranges for light skin detection
+    light_skin_ranges = [
+        # Very light skin (almost white)
+        ([0, 0, 220], [30, 30, 255]),
+        # Light skin with slight warmth
+        ([0, 5, 200], [25, 50, 255]),
+        # Light skin with more color
+        ([0, 10, 180], [30, 80, 240]),
+        # Light-medium skin
+        ([0, 15, 150], [25, 100, 220])
+    ]
+    
+    combined_mask = None
+    for lower, upper in light_skin_ranges:
+        mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
+        if combined_mask is None:
+            combined_mask = mask
+        else:
+            combined_mask = cv2.bitwise_or(combined_mask, mask)
+    
+    # Clean up mask
+    kernel = np.ones((2, 2), np.uint8)
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
+    
+    skin_pixels = image_array[combined_mask > 0]
+    if len(skin_pixels) > 50:
+        skin_colors.append(np.mean(skin_pixels, axis=0))
+    
+    # Method 2: Strategic face region sampling
+    face_regions = [
+        # Forehead (most reliable for light skin)
+        image_array[h//8:h//3, w//3:2*w//3],
+        # Upper cheeks
+        image_array[h//3:h//2, w//4:3*w//4],
+        # Nose bridge
+        image_array[h//3:2*h//3, 2*w//5:3*w//5],
+        # Lower cheeks
+        image_array[h//2:2*h//3, w//4:3*w//4],
+        # Chin area
+        image_array[2*h//3:5*h//6, 2*w//5:3*w//5]
+    ]
+    
+    for region in face_regions:
+        if region.size > 0:
+            # Use only pixels in the light skin tone range
+            region_gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+            light_mask = (region_gray > 150) & (region_gray < 250)  # Focus on light pixels
+            
+            if np.sum(light_mask) > 20:
+                light_pixels = region[light_mask]
+                region_color = np.mean(light_pixels, axis=0)
+                
+                # Only add if it's in the light skin range
+                if np.mean(region_color) > 180:  # Light skin threshold
+                    skin_colors.append(region_color)
+    
+    # Method 3: Percentile-based analysis for light skin
+    center_region = image_array[h//4:3*h//4, w//4:3*w//4]
+    if center_region.size > 0:
+        center_flat = center_region.reshape(-1, 3)
+        
+        # Use 75th percentile (lighter pixels) instead of mean
+        percentile_75 = np.percentile(center_flat, 75, axis=0)
+        if np.mean(percentile_75) > 160:  # Light skin threshold
+            skin_colors.append(percentile_75)
+    
+    # Method 4: Weighted sampling based on brightness
+    if len(skin_colors) == 0:  # Fallback method
+        # Sample the brightest regions of the face
+        face_area = image_array[h//4:3*h//4, w//4:3*w//4]
+        if face_area.size > 0:
+            face_gray = cv2.cvtColor(face_area, cv2.COLOR_RGB2GRAY)
+            bright_threshold = np.percentile(face_gray, 80)  # Top 20% brightest pixels
+            bright_mask = face_gray > bright_threshold
+            
+            if np.sum(bright_mask) > 100:
+                bright_pixels = face_area[bright_mask]
+                skin_colors.append(np.mean(bright_pixels, axis=0))
+    
+    return skin_colors
+
+def analyze_colors_with_light_bias(skin_colors: List[np.ndarray], image_array: np.ndarray) -> np.ndarray:
+    """
+    Analyze extracted colors with strong bias towards light skin tones
+    """
+    if not skin_colors:
+        # Ultimate fallback - use brightest regions
+        h, w = image_array.shape[:2]
+        center = image_array[h//3:2*h//3, w//3:2*w//3]
+        gray = cv2.cvtColor(center, cv2.COLOR_RGB2GRAY)
+        brightest_mask = gray > np.percentile(gray, 85)
+        if np.sum(brightest_mask) > 0:
+            return np.mean(center[brightest_mask], axis=0)
+        else:
+            return np.mean(center.reshape(-1, 3), axis=0)
+    
+    skin_colors_array = np.array(skin_colors)
+    
+    # Strongly bias towards lighter colors
+    brightness_scores = np.mean(skin_colors_array, axis=1)
+    
+    # Weight colors by brightness - lighter colors get much higher weight
+    weights = np.power(brightness_scores / 255.0, 0.3)  # Strong light bias
+    weights = weights / np.sum(weights)  # Normalize
+    
+    # Weighted average favoring lighter tones
+    final_color = np.average(skin_colors_array, axis=0, weights=weights)
+    
+    # Ensure result is not too dark for light skin
+    if np.mean(final_color) < 200:
+        # Boost lighter colors in the mix
+        light_colors = skin_colors_array[brightness_scores > 200]
+        if len(light_colors) > 0:
+            final_color = np.mean(light_colors, axis=0)
+    
+    return final_color
+
+def find_closest_monk_tone_enhanced(rgb_color: np.ndarray) -> Dict:
+    """
+    Enhanced Monk tone matching with special handling for light skin tones
+    """
+    # Log the detected color
+    logger.info(f"Detected skin color: RGB({rgb_color[0]:.1f}, {rgb_color[1]:.1f}, {rgb_color[2]:.1f})")
+    
+    # Check if this is clearly a light skin tone
+    avg_brightness = np.mean(rgb_color)
+    is_light_skin = avg_brightness > 200
+    
+    if is_light_skin:
+        logger.info("Light skin tone detected - prioritizing Monk 1-4")
+        
+        # For very light skin, only consider Monk 1-4
+        light_monk_tones = {
+            'Monk 1': '#f6ede4',
+            'Monk 2': '#f3e7db',
+            'Monk 3': '#f7ead0',
+            'Monk 4': '#eadaba'
+        }
+        
+        min_distance = float('inf')
+        closest_monk = None
+        
+        for monk_name, monk_hex in light_monk_tones.items():
+            monk_rgb = np.array(hex_to_rgb(monk_hex))
+            
+            # Enhanced distance calculation for light skin
+            distance = calculate_light_skin_distance(rgb_color, monk_rgb)
+            
+            logger.info(f"Light skin - {monk_name}: distance={distance:.2f}")
+            
+            if distance < min_distance:
+                min_distance = distance
+                closest_monk = monk_name
+    else:
+        # Standard processing for non-light skin
+        min_distance = float('inf')
+        closest_monk = None
+        
+        for monk_name, monk_hex in MONK_SKIN_TONES.items():
+            monk_rgb = np.array(hex_to_rgb(monk_hex))
+            
+            # Standard distance calculation
+            distance_rgb = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
+            
+            if distance_rgb < min_distance:
+                min_distance = distance_rgb
+                closest_monk = monk_name
+    
+    # Format result
+    monk_number = closest_monk.split()[1]
+    monk_id = f"Monk{monk_number.zfill(2)}"
+    derived_hex = rgb_to_hex((int(rgb_color[0]), int(rgb_color[1]), int(rgb_color[2])))
+    
+    logger.info(f"Final selection: {monk_id} ({closest_monk}) with distance {min_distance:.2f}")
+    
+    return {
+        'monk_name': closest_monk,
+        'monk_id': monk_id,
+        'monk_hex': MONK_SKIN_TONES[closest_monk],
+        'derived_hex': derived_hex
+    }
+
+def calculate_light_skin_distance(color1: np.ndarray, color2: np.ndarray) -> float:
+    """
+    Special distance calculation optimized for light skin tones
+    """
+    # Standard euclidean distance
+    euclidean = np.sqrt(np.sum((color1 - color2) ** 2))
+    
+    # Brightness difference penalty
+    brightness_diff = abs(np.mean(color1) - np.mean(color2))
+    
+    # Color variance penalty (light skin should have low variance)
+    color_var_penalty = np.var(color1) * 0.1
+    
+    # Combined distance favoring similar brightness
+    combined_distance = euclidean + brightness_diff * 0.5 + color_var_penalty
+    
+    return combined_distance
+
+def calculate_advanced_confidence(skin_colors: List[np.ndarray], final_color: np.ndarray) -> float:
+    """
+    Advanced confidence calculation
+    """
+    base_confidence = 0.7
+    
+    # More skin color samples = higher confidence
+    sample_bonus = min(len(skin_colors) * 0.05, 0.2)
+    
+    # Light skin gets confidence boost (easier to detect)
+    if np.mean(final_color) > 200:
+        light_bonus = 0.1
+    else:
+        light_bonus = 0.0
+    
+    # Consistency bonus
+    if len(skin_colors) > 1:
+        colors_array = np.array(skin_colors)
+        consistency = 1.0 / (1.0 + np.var(colors_array))
+        consistency_bonus = consistency * 0.1
+    else:
+        consistency_bonus = 0.0
+    
+    total_confidence = base_confidence + sample_bonus + light_bonus + consistency_bonus
+    
+    return max(0.0, min(1.0, total_confidence))
+        
+        
+    return {
+        'monk_name': closest_monk,
+        'monk_id': monk_id,
+        'monk_hex': MONK_SKIN_TONES[closest_monk],
+        'derived_hex': derived_hex
+    }
+
+def find_closest_monk_tone_improved(rgb_color: np.ndarray) -> Dict:
+    """
+    Improved function to find the closest Monk skin tone using multiple color spaces
+    """
+    min_distance = float('inf')
+    closest_monk = None
+    
+    # Log the detected average color for debugging
+    logger.info(f"Detected average skin color: RGB({rgb_color[0]:.1f}, {rgb_color[1]:.1f}, {rgb_color[2]:.1f})")
+    
+    # Calculate distances using multiple methods
+    for monk_name, monk_hex in MONK_SKIN_TONES.items():
+        monk_rgb = np.array(hex_to_rgb(monk_hex))
+        
+        # Method 1: Euclidean distance in RGB space
+        distance_rgb = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
+        
+        # Method 2: Weighted RGB distance (human perception)
+        # Red contributes less to perceived brightness, green more, blue least
+        weight_r, weight_g, weight_b = 0.3, 0.59, 0.11
+        distance_weighted = np.sqrt(
+            weight_r * (rgb_color[0] - monk_rgb[0]) ** 2 +
+            weight_g * (rgb_color[1] - monk_rgb[1]) ** 2 +
+            weight_b * (rgb_color[2] - monk_rgb[2]) ** 2
+        )
+        
+        # Method 3: HSV distance (focusing on hue and saturation)
+        def rgb_to_hsv(rgb):
+            rgb_normalized = rgb / 255.0
+            r, g, b = rgb_normalized
+            
+            max_val = max(r, g, b)
+            min_val = min(r, g, b)
+            diff = max_val - min_val
+            
+            # Hue calculation
+            if diff == 0:
+                h = 0
+            elif max_val == r:
+                h = (60 * ((g - b) / diff) + 360) % 360
+            elif max_val == g:
+                h = (60 * ((b - r) / diff) + 120) % 360
+            else:
+                h = (60 * ((r - g) / diff) + 240) % 360
+            
+            # Saturation calculation
+            s = 0 if max_val == 0 else diff / max_val
+            
+            # Value calculation
+            v = max_val
+            
+            return np.array([h, s, v])
+        
+        input_hsv = rgb_to_hsv(rgb_color)
+        monk_hsv = rgb_to_hsv(monk_rgb)
+        
+        # Calculate HSV distance with proper hue wrapping
+        hue_diff = min(abs(input_hsv[0] - monk_hsv[0]), 360 - abs(input_hsv[0] - monk_hsv[0]))
+        distance_hsv = np.sqrt(
+            (hue_diff / 360) ** 2 +
+            (input_hsv[1] - monk_hsv[1]) ** 2 +
+            (input_hsv[2] - monk_hsv[2]) ** 2
+        )
+        
+        # Combine distances with weights
+        # RGB distance has most weight, but HSV helps with color perception
+        combined_distance = 0.5 * distance_rgb + 0.3 * distance_weighted + 0.2 * distance_hsv * 100
+        
+        # Debug logging
+        logger.info(f"Monk {monk_name}: RGB_dist={distance_rgb:.2f}, Weighted_dist={distance_weighted:.2f}, HSV_dist={distance_hsv:.2f}, Combined={combined_distance:.2f}")
+        
+        if combined_distance < min_distance:
+            min_distance = combined_distance
+            closest_monk = monk_name
+    
+    # Format monk ID (e.g., "Monk 5" -> "Monk05")
+    monk_number = closest_monk.split()[1]
+    monk_id = f"Monk{monk_number.zfill(2)}"
+    
+    # Convert RGB to hex
+    derived_hex = rgb_to_hex((int(rgb_color[0]), int(rgb_color[1]), int(rgb_color[2])))
+    
+    logger.info(f"Selected Monk tone: {monk_id} ({closest_monk}) with distance {min_distance:.2f}")
+    
+    return {
+        'monk_name': closest_monk,
+        'monk_id': monk_id,
+        'monk_hex': MONK_SKIN_TONES[closest_monk],
+        'derived_hex': derived_hex
+    }
+
+def get_fallback_result() -> Dict:
+    """
+    Return a fallback result when analysis fails
+    """
+    # Randomly select from common skin tones instead of always Monk05
+    fallback_tones = ['Monk 3', 'Monk 4', 'Monk 5', 'Monk 6']
+    selected_tone = random.choice(fallback_tones)
+    
+    monk_number = selected_tone.split()[1]
+    monk_id = f"Monk{monk_number.zfill(2)}"
+    monk_hex = MONK_SKIN_TONES[selected_tone]
+    
+    logger.warning(f"Using fallback skin tone: {selected_tone}")
+    
+    return {
+        'monk_skin_tone': monk_id,
+        'monk_tone_display': selected_tone,
+        'monk_hex': monk_hex,
+        'derived_hex_code': monk_hex,
+        'dominant_rgb': list(hex_to_rgb(monk_hex)),
+        'confidence': 0.3,  # Lower confidence for fallback
+        'success': False,  # Indicate this is a fallback
+        'message': 'Using fallback skin tone due to analysis failure'
+    }
 
 def color_distance(color1, color2):
     """Calculate Euclidean distance between two RGB colors."""
@@ -1256,4 +1844,48 @@ async def get_color_recommendations(
             {"name": "Sapphire Blue", "hex": "#0F52BA"}
         ],
         "message": "We're working on expanding our color recommendations. Stay tuned for more colors!"
+    }
+
+@app.post("/analyze-skin-tone")
+async def analyze_skin_tone(file: UploadFile = File(...)):
+    """
+    Analyze skin tone from uploaded image
+    """
+    try:
+        # Validate file type
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Read image data
+        image_data = await file.read()
+        
+        # Convert to PIL Image
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Convert to numpy array
+        image_array = np.array(image)
+        
+        # Analyze skin tone
+        result = analyze_skin_tone_simple(image_array)
+        
+        logger.info(f"Skin tone analysis result: {result}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in analyze_skin_tone endpoint: {e}")
+        return get_fallback_result()
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "message": "Skin tone analysis API is running",
+        "available_tones": list(MONK_SKIN_TONES.keys())
     }
