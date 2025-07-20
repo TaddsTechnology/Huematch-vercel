@@ -79,40 +79,37 @@ class EnhancedSkinAnalyzer:
                 })
         
         return faces
-    
-    def correct_lighting(self, image: np.ndarray, method: str = 'clahe') -> np.ndarray:
-        """Apply lighting correction to improve skin tone detection."""
-        if method == 'clahe':
-            # Convert to LAB color space for better lighting correction
-            lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-            l, a, b = cv2.split(lab)
-            
-            # Apply CLAHE to L channel
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-            l = clahe.apply(l)
-            
-            # Merge channels and convert back to RGB
-            lab = cv2.merge([l, a, b])
-            corrected = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
-            
-        elif method == 'histogram_equalization':
-            # Apply histogram equalization to each channel
-            corrected = np.zeros_like(image)
-            for i in range(3):
-                corrected[:, :, i] = cv2.equalizeHist(image[:, :, i])
+    def correct_lighting(self, image: np.ndarray, method: str = 'clahe') -e np.ndarray:
+        """Apply advanced lighting correction to improve skin tone detection."""
+        try:
+            if method == 'clahe':
+                # Convert to LAB color space for better lighting correction
+                lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
+                l, a, b = cv2.split(lab)
                 
-        elif method == 'gamma_correction':
-            # Apply gamma correction
-            gamma = 1.2
-            corrected = np.power(image / 255.0, gamma) * 255.0
-            corrected = corrected.astype(np.uint8)
-            
-        else:
-            corrected = image
-            
-        return corrected
+                # Apply CLAHE with tuned parameters
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                l = clahe.apply(l)
+                
+                # Merge channels and convert back to RGB
+                lab = cv2.merge([l, a, b])
+                corrected = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+            elif method == 'white_balance':
+                # Advanced white balance
+                result = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
+                avg_a = np.average(result[:, :, 1])
+                avg_b = np.average(result[:, :, 2])
+                result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
+                result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
+                corrected = cv2.cvtColor(result, cv2.COLOR_LAB2RGB)
+            else:
+                corrected = image
+            return corrected
+        except Exception as e:
+            logger.error(f"Error in lighting correction: {e}")
+            return image
     
-    def face_skin_extract(self, pred: np.ndarray, image_x: np.ndarray) -> np.ndarray:
+    def face_skin_extract(self, pred: np.ndarray, image_x: np.ndarray) -e np.ndarray:
         """Extract skin pixels from segmentation prediction."""
         output = np.zeros_like(image_x, dtype=np.uint8)
         mask = (pred == 1)  # Skin class
@@ -215,8 +212,8 @@ class EnhancedSkinAnalyzer:
         
         return min(overall, 1.0)
     
-    def process_single_face(self, face_crop: np.ndarray, face_confidence: float) -> Dict:
-        """Process a single face crop for skin tone analysis."""
+    def process_face_regions(self, face_crop: np.ndarray, face_confidence: float) -> Dict:
+        """Process a single face crop analyzing multiple regions for skin tone analysis."""
         if self.model is None:
             return {
                 'error': 'Model not loaded',
@@ -228,51 +225,67 @@ class EnhancedSkinAnalyzer:
             # Apply lighting correction
             corrected_face = self.correct_lighting(face_crop, method='clahe')
             
-            # Resize for model input
-            resized_face = cv2.resize(corrected_face, (512, 512))
-            normalized_face = resized_face / 255.0
-            input_batch = np.expand_dims(normalized_face, axis=0).astype(np.float32)
-            
-            # Make prediction
-            pred = self.model.predict(input_batch, verbose=0)[0]
-            pred_mask = np.argmax(pred, axis=-1).astype(np.int32)
-            
-            # Calculate segmentation quality
-            skin_pixels = np.sum(pred_mask == 1)
-            total_pixels = pred_mask.size
-            segmentation_quality = skin_pixels / total_pixels
-            
-            # Extract skin
-            skin_mask = self.face_skin_extract(pred_mask, resized_face)
-            
-            # Extract dominant color with confidence
-            dominant_color, color_confidence = self.extract_dominant_color_advanced(skin_mask)
-            
-            # Find closest skin tone
-            monk_tone, monk_hex, derived_hex, tone_similarity = self.find_closest_skin_tone(
-                (dominant_color[0], dominant_color[1], dominant_color[2])
-            )
-            
-            # Calculate overall confidence
-            overall_confidence = self.calculate_overall_confidence(
-                segmentation_quality, color_confidence, tone_similarity, face_confidence
-            )
-            
-            return {
-                'monk_tone': monk_tone,
-                'monk_hex': monk_hex,
-                'derived_hex': derived_hex,
-                'dominant_rgb': dominant_color.tolist(),
-                'confidence': overall_confidence,
-                'segmentation_quality': segmentation_quality,
-                'color_confidence': color_confidence,
-                'tone_similarity': tone_similarity,
-                'face_confidence': face_confidence,
-                'skin_mask': skin_mask
+            # Analyze multiple facial regions: forehead, cheeks, nose
+            regions = {
+                'forehead': corrected_face[10:60, 40:120],
+                'left_cheek': corrected_face[60:120, 10:60],
+                'right_cheek': corrected_face[60:120, 120:170],
+                'nose': corrected_face[50:100, 70:130]
             }
+            region_results = []
+            
+            for region_name, region in regions.items():
+                # Resize for model input
+                resized_region = cv2.resize(region, (512, 512))
+                normalized_region = resized_region / 255.0
+                input_batch = np.expand_dims(normalized_region, axis=0).astype(np.float32)
+                
+                # Make prediction
+                pred = self.model.predict(input_batch, verbose=0)[0]
+                pred_mask = np.argmax(pred, axis=-1).astype(np.int32)
+                
+                # Calculate segmentation quality
+                skin_pixels = np.sum(pred_mask == 1)
+                total_pixels = pred_mask.size
+                segmentation_quality = skin_pixels / total_pixels
+                
+                # Extract skin
+                skin_mask = self.face_skin_extract(pred_mask, resized_region)
+                
+                # Extract dominant color with confidence
+                dominant_color, color_confidence = self.extract_dominant_color_advanced(skin_mask)
+                
+                # Find closest skin tone
+                monk_tone, monk_hex, derived_hex, tone_similarity = self.find_closest_skin_tone(
+                    (dominant_color[0], dominant_color[1], dominant_color[2])
+                )
+                
+                # Calculate overall confidence for region
+                confidence = self.calculate_overall_confidence(
+                    segmentation_quality, color_confidence, tone_similarity, face_confidence
+                )
+                
+                region_results.append({
+                    'region': region_name,
+                    'monk_tone': monk_tone,
+                    'monk_hex': monk_hex,
+                    'derived_hex': derived_hex,
+                    'dominant_rgb': dominant_color.tolist(),
+                    'confidence': confidence,
+                    'segmentation_quality': segmentation_quality,
+                    'color_confidence': color_confidence,
+                    'tone_similarity': tone_similarity,
+                    'face_confidence': face_confidence,
+                    'skin_mask': skin_mask
+                })
+
+            # Determine the best skin tone result from regions
+            best_region_result = max(region_results, key=lambda x: x['confidence'])
+            
+            return best_region_result
             
         except Exception as e:
-            logger.error(f"Error processing face: {e}")
+            logger.error(f"Error processing face regions: {e}")
             return {
                 'error': str(e),
                 'monk_tone': 'Monk 5',
@@ -298,7 +311,7 @@ class EnhancedSkinAnalyzer:
             # Process each face
             results = []
             for i, face in enumerate(faces):
-                face_result = self.process_single_face(face['crop'], face['confidence'])
+                face_result = self.process_face_regions(face['crop'], face['confidence'])
                 face_result['face_id'] = i + 1
                 face_result['bbox'] = face['bbox']
                 results.append(face_result)

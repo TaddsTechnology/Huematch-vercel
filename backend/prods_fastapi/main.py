@@ -15,6 +15,11 @@ import io
 from PIL import Image
 import logging
 import random
+import sys
+sys.path.append('..')
+from advanced_recommendation_engine import get_recommendation_engine
+from performance_optimizer import performance_optimizer, cached, skin_tone_cache
+from ab_testing_system import ab_testing_system, create_ab_test, get_ab_test_recommendations, track_ab_test_event, RecommendationAlgorithm
 
 app = FastAPI()
 
@@ -286,28 +291,38 @@ def apply_minimal_processing(image_array: np.ndarray) -> np.ndarray:
 
 def extract_skin_colors_advanced(image_array: np.ndarray) -> List[np.ndarray]:
     """
-    Advanced skin color extraction with multiple sophisticated methods
+    Advanced skin color extraction with improved handling for all skin tones
     """
     skin_colors = []
     h, w = image_array.shape[:2]
     
-    # Method 1: Advanced HSV-based detection optimized for light skin
+    # Method 1: Multi-range HSV detection for all skin tones
     hsv = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
     
-    # Highly optimized ranges for light skin detection
-    light_skin_ranges = [
-        # Very light skin (almost white)
-        ([0, 0, 220], [30, 30, 255]),
-        # Light skin with slight warmth
-        ([0, 5, 200], [25, 50, 255]),
-        # Light skin with more color
-        ([0, 10, 180], [30, 80, 240]),
-        # Light-medium skin
-        ([0, 15, 150], [25, 100, 220])
+    # Expanded skin detection ranges covering full spectrum
+    skin_ranges = [
+        # Very light skin (almost white) - Monk 1-2
+        ([0, 0, 235], [30, 25, 255]),
+        ([0, 5, 220], [25, 40, 255]),
+        # Light skin - Monk 2-3  
+        ([0, 10, 200], [30, 60, 245]),
+        ([0, 15, 180], [25, 80, 230]),
+        # Light-medium skin - Monk 3-4
+        ([0, 20, 160], [30, 100, 220]),
+        ([0, 25, 140], [25, 120, 200]),
+        # Medium skin - Monk 4-6
+        ([0, 30, 120], [30, 140, 180]),
+        ([0, 35, 100], [25, 160, 160]),
+        # Medium-dark skin - Monk 6-8
+        ([0, 40, 80], [30, 180, 140]),
+        ([0, 45, 60], [25, 200, 120]),
+        # Dark skin - Monk 8-10
+        ([0, 50, 40], [30, 220, 100]),
+        ([0, 55, 20], [25, 255, 80])
     ]
     
     combined_mask = None
-    for lower, upper in light_skin_ranges:
+    for lower, upper in skin_ranges:
         mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
         if combined_mask is None:
             combined_mask = mask
@@ -378,90 +393,147 @@ def extract_skin_colors_advanced(image_array: np.ndarray) -> List[np.ndarray]:
 
 def analyze_colors_with_light_bias(skin_colors: List[np.ndarray], image_array: np.ndarray) -> np.ndarray:
     """
-    Analyze extracted colors with strong bias towards light skin tones
+    Analyze extracted colors with balanced approach for all skin tones
     """
     if not skin_colors:
-        # Ultimate fallback - use brightest regions
+        # Ultimate fallback - use center region analysis
         h, w = image_array.shape[:2]
         center = image_array[h//3:2*h//3, w//3:2*w//3]
+        
+        # Check overall brightness to determine approach
         gray = cv2.cvtColor(center, cv2.COLOR_RGB2GRAY)
-        brightest_mask = gray > np.percentile(gray, 85)
-        if np.sum(brightest_mask) > 0:
-            return np.mean(center[brightest_mask], axis=0)
-        else:
-            return np.mean(center.reshape(-1, 3), axis=0)
+        overall_brightness = np.mean(gray)
+        
+        if overall_brightness > 200:  # Very bright image - likely light skin
+            # Use brightest regions
+            brightest_mask = gray > np.percentile(gray, 75)
+            if np.sum(brightest_mask) > 0:
+                return np.mean(center[brightest_mask], axis=0)
+        elif overall_brightness < 100:  # Dark image - likely dark skin
+            # Use medium-bright regions to avoid shadows
+            medium_mask = (gray > np.percentile(gray, 40)) & (gray < np.percentile(gray, 85))
+            if np.sum(medium_mask) > 0:
+                return np.mean(center[medium_mask], axis=0)
+        
+        # Default fallback
+        return np.mean(center.reshape(-1, 3), axis=0)
     
     skin_colors_array = np.array(skin_colors)
-    
-    # Strongly bias towards lighter colors
     brightness_scores = np.mean(skin_colors_array, axis=1)
+    overall_brightness = np.mean(brightness_scores)
     
-    # Weight colors by brightness - lighter colors get much higher weight
-    weights = np.power(brightness_scores / 255.0, 0.3)  # Strong light bias
+    # Adaptive weighting based on overall brightness
+    if overall_brightness > 220:  # Very light skin tones
+        # Prioritize lighter samples
+        weights = np.power(brightness_scores / 255.0, 0.3)
+    elif overall_brightness < 120:  # Dark skin tones
+        # More balanced weighting, avoid over-emphasizing lighter samples
+        weights = np.power(brightness_scores / 255.0, 0.8)
+    else:  # Medium skin tones
+        # Balanced approach
+        weights = np.power(brightness_scores / 255.0, 0.5)
+    
     weights = weights / np.sum(weights)  # Normalize
     
-    # Weighted average favoring lighter tones
+    # Calculate weighted average
     final_color = np.average(skin_colors_array, axis=0, weights=weights)
     
-    # Ensure result is not too dark for light skin
-    if np.mean(final_color) < 200:
-        # Boost lighter colors in the mix
-        light_colors = skin_colors_array[brightness_scores > 200]
+    # Adaptive post-processing based on detected brightness
+    if overall_brightness > 220 and np.mean(final_color) < 200:
+        # For very light skin, ensure result isn't too dark
+        light_colors = skin_colors_array[brightness_scores > 210]
         if len(light_colors) > 0:
             final_color = np.mean(light_colors, axis=0)
+    elif overall_brightness < 120 and np.mean(final_color) > 140:
+        # For dark skin, ensure result isn't too light  
+        dark_colors = skin_colors_array[brightness_scores < 140]
+        if len(dark_colors) > 0:
+            final_color = np.mean(dark_colors, axis=0)
     
     return final_color
 
 def find_closest_monk_tone_enhanced(rgb_color: np.ndarray) -> Dict:
     """
-    Enhanced Monk tone matching with special handling for light skin tones
+    Enhanced Monk tone matching with improved calibration for all skin tones
     """
     # Log the detected color
     logger.info(f"Detected skin color: RGB({rgb_color[0]:.1f}, {rgb_color[1]:.1f}, {rgb_color[2]:.1f})")
     
-    # Check if this is clearly a light skin tone
+    # Calculate brightness and undertone characteristics
     avg_brightness = np.mean(rgb_color)
-    is_light_skin = avg_brightness > 200
+    max_channel = np.max(rgb_color)
+    min_channel = np.min(rgb_color)
+    color_range = max_channel - min_channel
     
-    if is_light_skin:
-        logger.info("Light skin tone detected - prioritizing Monk 1-4")
+    logger.info(f"Brightness analysis: avg={avg_brightness:.1f}, max={max_channel:.1f}, min={min_channel:.1f}, range={color_range:.1f}")
+    
+    # Improved brightness thresholds based on actual Monk scale values
+    # Convert Monk hex values to brightness levels for reference
+    monk_brightnesses = {}
+    for monk_name, monk_hex in MONK_SKIN_TONES.items():
+        monk_rgb = np.array(hex_to_rgb(monk_hex))
+        monk_brightnesses[monk_name] = np.mean(monk_rgb)
+    
+    # Find the closest match using improved algorithm
+    min_distance = float('inf')
+    closest_monk = None
+    
+    for monk_name, monk_hex in MONK_SKIN_TONES.items():
+        monk_rgb = np.array(hex_to_rgb(monk_hex))
         
-        # For very light skin, only consider Monk 1-4
-        light_monk_tones = {
-            'Monk 1': '#f6ede4',
-            'Monk 2': '#f3e7db',
-            'Monk 3': '#f7ead0',
-            'Monk 4': '#eadaba'
-        }
+        # Multi-factor distance calculation
+        # 1. Euclidean distance in RGB space
+        euclidean_distance = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
         
-        min_distance = float('inf')
-        closest_monk = None
+        # 2. Brightness difference (heavily weighted for extreme ends)
+        brightness_diff = abs(avg_brightness - np.mean(monk_rgb))
         
-        for monk_name, monk_hex in light_monk_tones.items():
-            monk_rgb = np.array(hex_to_rgb(monk_hex))
-            
-            # Enhanced distance calculation for light skin
-            distance = calculate_light_skin_distance(rgb_color, monk_rgb)
-            
-            logger.info(f"Light skin - {monk_name}: distance={distance:.2f}")
-            
-            if distance < min_distance:
-                min_distance = distance
-                closest_monk = monk_name
-    else:
-        # Standard processing for non-light skin
-        min_distance = float('inf')
-        closest_monk = None
+        # 3. Color saturation difference
+        input_saturation = color_range / max_channel if max_channel > 0 else 0
+        monk_saturation = (np.max(monk_rgb) - np.min(monk_rgb)) / np.max(monk_rgb) if np.max(monk_rgb) > 0 else 0
+        saturation_diff = abs(input_saturation - monk_saturation)
         
-        for monk_name, monk_hex in MONK_SKIN_TONES.items():
-            monk_rgb = np.array(hex_to_rgb(monk_hex))
-            
-            # Standard distance calculation
-            distance_rgb = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
-            
-            if distance_rgb < min_distance:
-                min_distance = distance_rgb
-                closest_monk = monk_name
+        # 4. Weighted combination with emphasis on brightness for extreme tones
+        if avg_brightness > 230:  # Very light skin
+            # Heavily weight brightness for very light skin
+            distance = euclidean_distance * 0.3 + brightness_diff * 2.0 + saturation_diff * 50
+        elif avg_brightness < 100:  # Very dark skin
+            # Heavily weight brightness for very dark skin  
+            distance = euclidean_distance * 0.3 + brightness_diff * 2.5 + saturation_diff * 30
+        else:  # Medium skin tones
+            # Balanced weighting for medium tones
+            distance = euclidean_distance * 0.7 + brightness_diff * 1.0 + saturation_diff * 20
+        
+        logger.info(f"{monk_name}: euclidean={euclidean_distance:.2f}, brightness_diff={brightness_diff:.2f}, sat_diff={saturation_diff:.3f}, total={distance:.2f}")
+        
+        if distance < min_distance:
+            min_distance = distance
+            closest_monk = monk_name
+    
+    # Additional validation for extreme cases
+    if avg_brightness > 240 and closest_monk not in ['Monk 1', 'Monk 2']:
+        logger.info(f"Very light skin detected (brightness={avg_brightness:.1f}), forcing Monk 1-2 range")
+        # Force to lightest appropriate tone
+        light_options = ['Monk 1', 'Monk 2']
+        min_dist = float('inf')
+        for option in light_options:
+            monk_rgb = np.array(hex_to_rgb(MONK_SKIN_TONES[option]))
+            dist = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
+            if dist < min_dist:
+                min_dist = dist
+                closest_monk = option
+    
+    elif avg_brightness < 80 and closest_monk not in ['Monk 8', 'Monk 9', 'Monk 10']:
+        logger.info(f"Very dark skin detected (brightness={avg_brightness:.1f}), forcing Monk 8-10 range")
+        # Force to darkest appropriate tone
+        dark_options = ['Monk 8', 'Monk 9', 'Monk 10']
+        min_dist = float('inf')
+        for option in dark_options:
+            monk_rgb = np.array(hex_to_rgb(MONK_SKIN_TONES[option]))
+            dist = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
+            if dist < min_dist:
+                min_dist = dist
+                closest_monk = option
     
     # Format result
     monk_number = closest_monk.split()[1]
@@ -1889,3 +1961,391 @@ async def health_check():
         "message": "Skin tone analysis API is running",
         "available_tones": list(MONK_SKIN_TONES.keys())
     }
+
+# Advanced Recommendation Endpoints
+@app.post("/api/advanced-recommendations")
+async def get_advanced_recommendations(request: dict):
+    """Get advanced personalized recommendations using ML engine."""
+    try:
+        # Get recommendation engine instance
+        rec_engine = get_recommendation_engine()
+        
+        # Extract parameters from request
+        skin_tone = request.get('skin_tone', 'Monk 5')
+        user_preferences = request.get('user_preferences', {})
+        n_recommendations = request.get('limit', 10)
+        
+        # Get personalized recommendations
+        recommendations = rec_engine.get_personalized_recommendations(
+            skin_tone=skin_tone,
+            user_preferences=user_preferences,
+            n_recommendations=n_recommendations
+        )
+        
+        return {
+            "success": True,
+            "data": recommendations,
+            "message": "Advanced recommendations generated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in advanced recommendations: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to generate recommendations"
+        }
+
+@app.get("/api/trending-items")
+async def get_trending_items(
+    product_type: str = Query('makeup', description="Product type: makeup or outfit"),
+    limit: int = Query(10, description="Number of trending items to return")
+):
+    """Get trending items using ML engine."""
+    try:
+        # Get recommendation engine instance
+        rec_engine = get_recommendation_engine()
+        
+        # Get trending items
+        trending_items = rec_engine.get_trending_items(
+            product_type=product_type,
+            n_items=limit
+        )
+        
+        return {
+            "success": True,
+            "data": trending_items,
+            "total_items": len(trending_items),
+            "message": f"Retrieved {len(trending_items)} trending {product_type} items"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting trending items: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to retrieve trending items"
+        }
+
+@app.post("/api/user-feedback")
+async def add_user_feedback(request: dict):
+    """Add user feedback for improving recommendations."""
+    try:
+        # Get recommendation engine instance
+        rec_engine = get_recommendation_engine()
+        
+        # Extract parameters
+        user_id = request.get('user_id')
+        item_id = request.get('item_id')
+        rating = request.get('rating')
+        interaction_type = request.get('interaction_type', 'rating')
+        
+        if not all([user_id, item_id, rating]):
+            return {
+                "success": False,
+                "message": "Missing required fields: user_id, item_id, rating"
+            }
+        
+        # Add feedback
+        rec_engine.add_user_feedback(
+            user_id=user_id,
+            item_id=item_id,
+            rating=float(rating),
+            interaction_type=interaction_type
+        )
+        
+        return {
+            "success": True,
+            "message": "User feedback added successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error adding user feedback: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to add user feedback"
+        }
+
+@app.get("/api/content-recommendations")
+async def get_content_based_recommendations(
+    product_type: str = Query('makeup', description="Product type: makeup or outfit"),
+    item_index: int = Query(0, description="Index of item to find similar items for"),
+    limit: int = Query(10, description="Number of recommendations to return")
+):
+    """Get content-based recommendations."""
+    try:
+        # Get recommendation engine instance
+        rec_engine = get_recommendation_engine()
+        
+        # Get content-based recommendations
+        recommendations = rec_engine.content_based_recommendations(
+            product_type=product_type,
+            item_idx=item_index,
+            n_recommendations=limit
+        )
+        
+        return {
+            "success": True,
+            "data": recommendations,
+            "total_items": len(recommendations),
+            "message": f"Retrieved {len(recommendations)} content-based recommendations"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting content recommendations: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to retrieve content-based recommendations"
+        }
+
+# A/B Testing System Endpoints
+@app.post("/api/ab-test/create")
+async def create_ab_test_experiment(request: dict):
+    """Create a new A/B test experiment."""
+    try:
+        experiment_name = request.get('experiment_name')
+        control_algorithm = request.get('control_algorithm', 'collaborative')
+        test_algorithm = request.get('test_algorithm', 'content_based')
+        traffic_split = request.get('traffic_split', 0.5)
+        target_metric = request.get('target_metric', 'click_rate')
+        description = request.get('description', '')
+        
+        if not experiment_name:
+            return {
+                "success": False,
+                "message": "experiment_name is required"
+            }
+        
+        # Create experiment using A/B testing system
+        experiment = create_ab_test(
+            experiment_name=experiment_name,
+            control_algorithm=RecommendationAlgorithm[control_algorithm.upper()],
+            test_algorithm=RecommendationAlgorithm[test_algorithm.upper()],
+            traffic_split=traffic_split,
+            target_metric=target_metric,
+            description=description
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "experiment_id": experiment.experiment_id,
+                "experiment_name": experiment.experiment_name,
+                "control_algorithm": experiment.control_algorithm.name,
+                "test_algorithm": experiment.test_algorithm.name,
+                "traffic_split": experiment.traffic_split,
+                "target_metric": experiment.target_metric,
+                "status": experiment.status,
+                "created_at": experiment.start_time.isoformat()
+            },
+            "message": "A/B test experiment created successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating A/B test: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to create A/B test experiment"
+        }
+
+@app.get("/api/ab-test/recommendations")
+async def get_ab_test_recommendations(
+    user_id: str = Query(..., description="User ID for variant assignment"),
+    experiment_name: str = Query(..., description="Name of the A/B test experiment"),
+    product_type: str = Query('makeup', description="Product type: makeup or outfit"),
+    skin_tone: str = Query(None, description="User's skin tone"),
+    limit: int = Query(10, description="Number of recommendations to return")
+):
+    """Get recommendations for a user based on their A/B test variant."""
+    try:
+        # Prepare user preferences
+        user_preferences = {
+            'skin_tone': skin_tone,
+            'product_type': product_type
+        }
+        
+        # Get A/B test recommendations
+        result = get_ab_test_recommendations(
+            user_id=user_id,
+            experiment_name=experiment_name,
+            user_preferences=user_preferences,
+            n_recommendations=limit
+        )
+        
+        return {
+            "success": True,
+            "data": result['recommendations'],
+            "variant": result['variant'],
+            "algorithm_used": result['algorithm'].name,
+            "experiment_name": experiment_name,
+            "total_items": len(result['recommendations']),
+            "message": f"Retrieved {len(result['recommendations'])} recommendations using {result['variant']} variant"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting A/B test recommendations: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to retrieve A/B test recommendations"
+        }
+
+@app.post("/api/ab-test/track-event")
+async def track_ab_test_event(request: dict):
+    """Track user events for A/B test analysis."""
+    try:
+        user_id = request.get('user_id')
+        experiment_name = request.get('experiment_name')
+        event_type = request.get('event_type')  # 'view', 'click', 'purchase', 'rating'
+        item_id = request.get('item_id')
+        value = request.get('value', 1.0)  # rating value or purchase amount
+        
+        if not all([user_id, experiment_name, event_type]):
+            return {
+                "success": False,
+                "message": "Missing required fields: user_id, experiment_name, event_type"
+            }
+        
+        # Track the event
+        track_ab_test_event(
+            user_id=user_id,
+            experiment_name=experiment_name,
+            event_type=event_type,
+            item_id=item_id,
+            value=value
+        )
+        
+        return {
+            "success": True,
+            "message": f"Event '{event_type}' tracked successfully for user {user_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error tracking A/B test event: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to track A/B test event"
+        }
+
+@app.get("/api/ab-test/experiments")
+async def list_ab_test_experiments():
+    """List all A/B test experiments."""
+    try:
+        experiments = ab_testing_system.list_experiments()
+        
+        experiments_data = []
+        for exp in experiments:
+            experiments_data.append({
+                "experiment_id": exp.experiment_id,
+                "experiment_name": exp.experiment_name,
+                "control_algorithm": exp.control_algorithm.name,
+                "test_algorithm": exp.test_algorithm.name,
+                "traffic_split": exp.traffic_split,
+                "target_metric": exp.target_metric,
+                "status": exp.status,
+                "created_at": exp.start_time.isoformat(),
+                "description": exp.description,
+                "total_users": len(exp.user_assignments)
+            })
+        
+        return {
+            "success": True,
+            "data": experiments_data,
+            "total_experiments": len(experiments_data),
+            "message": f"Retrieved {len(experiments_data)} A/B test experiments"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing A/B test experiments: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to retrieve A/B test experiments"
+        }
+
+@app.get("/api/ab-test/results/{experiment_name}")
+async def get_ab_test_results(experiment_name: str):
+    """Get results and analysis for a specific A/B test experiment."""
+    try:
+        results = ab_testing_system.get_experiment_results(experiment_name)
+        
+        if not results:
+            return {
+                "success": False,
+                "message": f"No results found for experiment: {experiment_name}"
+            }
+        
+        return {
+            "success": True,
+            "data": results,
+            "experiment_name": experiment_name,
+            "message": f"Retrieved results for experiment: {experiment_name}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting A/B test results: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to retrieve results for experiment: {experiment_name}"
+        }
+
+@app.post("/api/ab-test/stop/{experiment_name}")
+async def stop_ab_test_experiment(experiment_name: str):
+    """Stop a running A/B test experiment."""
+    try:
+        success = ab_testing_system.stop_experiment(experiment_name)
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Experiment '{experiment_name}' stopped successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Failed to stop experiment '{experiment_name}' - experiment not found or already stopped"
+            }
+        
+    except Exception as e:
+        logger.error(f"Error stopping A/B test experiment: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to stop experiment: {experiment_name}"
+        }
+
+@app.get("/api/ab-test/user-variant/{user_id}")
+async def get_user_ab_test_variants(user_id: str):
+    """Get all active A/B test variants for a specific user."""
+    try:
+        experiments = ab_testing_system.list_experiments()
+        user_variants = []
+        
+        for exp in experiments:
+            if exp.status == 'active' and user_id in exp.user_assignments:
+                user_variants.append({
+                    "experiment_name": exp.experiment_name,
+                    "variant": exp.user_assignments[user_id],
+                    "algorithm": exp.control_algorithm.name if exp.user_assignments[user_id] == 'control' else exp.test_algorithm.name
+                })
+        
+        return {
+            "success": True,
+            "data": user_variants,
+            "user_id": user_id,
+            "total_active_tests": len(user_variants),
+            "message": f"Retrieved {len(user_variants)} active A/B test assignments for user {user_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting user A/B test variants: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to retrieve A/B test variants for user: {user_id}"
+        }
