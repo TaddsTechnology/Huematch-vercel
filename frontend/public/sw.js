@@ -6,8 +6,7 @@ const DYNAMIC_CACHE_NAME = 'huematch-dynamic-v1';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  '/icons/icon-144x144.svg',
   // Add more critical assets here
 ];
 
@@ -20,28 +19,22 @@ const CACHE_PATTERNS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
-  
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching static assets');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('Service Worker: Static assets cached');
         return self.skipWaiting();
       })
       .catch((error) => {
-        console.error('Service Worker: Failed to cache static assets', error);
+        // Silent error handling in production
       })
   );
 });
 
 // Activate event - cleanup old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
-  
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -49,13 +42,11 @@ self.addEventListener('activate', (event) => {
           if (cacheName !== STATIC_CACHE_NAME && 
               cacheName !== DYNAMIC_CACHE_NAME &&
               cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-      console.log('Service Worker: Activated');
       return self.clients.claim();
     })
   );
@@ -109,7 +100,6 @@ async function cacheFirst(request) {
   try {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
-      console.log('Service Worker: Serving from cache', request.url);
       return cachedResponse;
     }
 
@@ -122,8 +112,6 @@ async function cacheFirst(request) {
 
     return networkResponse;
   } catch (error) {
-    console.error('Service Worker: Cache-first failed', error);
-    
     // Return offline fallback for navigation requests
     if (request.mode === 'navigate') {
       return caches.match('/offline.html') || new Response('Offline', { status: 503 });
@@ -145,7 +133,6 @@ async function networkFirst(request) {
     
     return networkResponse;
   } catch (error) {
-    console.log('Service Worker: Network failed, trying cache', request.url);
     
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
@@ -186,7 +173,7 @@ async function navigateHandler(request) {
       return networkResponse;
     }
   } catch (error) {
-    console.log('Service Worker: Navigation network failed');
+    // Network failed, continue to cache fallback
   }
 
   // Try to serve from cache
@@ -231,7 +218,6 @@ self.addEventListener('sync', (event) => {
 });
 
 async function doBackgroundSync() {
-  console.log('Service Worker: Background sync triggered');
   // Implement background sync logic here
   // For example, sync offline color analysis requests
 }
@@ -240,8 +226,8 @@ async function doBackgroundSync() {
 self.addEventListener('push', (event) => {
   const options = {
     body: event.data ? event.data.text() : 'New update available!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/icons/icon-144x144.svg',
+    badge: '/icons/icon-144x144.svg',
     vibrate: [200, 100, 200],
     data: {
       url: '/'

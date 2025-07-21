@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import AuthModal from '../components/AuthModal';
 import { 
   ArrowRight, 
   Sparkle, 
@@ -74,27 +72,43 @@ const galleryImages = [
 ];
 
 const LandingPage = () => {
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-100 via-pink-50 to-white">
-      <Navbar />
+      {/* Simple Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
+                <Sparkle className="h-6 w-6 text-pink-600" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">HueMatch</span>
+            </div>
+            <div className="hidden md:flex items-center space-x-8">
+              <Link to="/resources" className="text-gray-600 hover:text-purple-600 transition-colors">Resources</Link>
+              <Link to="/blog" className="text-gray-600 hover:text-purple-600 transition-colors">Blog</Link>
+              <Link to="/about" className="text-gray-600 hover:text-purple-600 transition-colors">About</Link>
+              <Link to="/demo" className="text-gray-600 hover:text-purple-600 transition-colors">Demo</Link>
+              <Link to="/contact" className="text-gray-600 hover:text-purple-600 transition-colors">Contact</Link>
+              <Link to="/demo" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:opacity-90 transition-all">Try Now</Link>
+            </div>
+          </div>
+        </div>
+      </nav>
       
       {/* Hero Section */}
-      <div className="relative pt-20 overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-gradient-to-b from-purple-200 to-transparent opacity-30 blur-3xl"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-            <div className="lg:w-1/2 space-y-8 relative">
-              <div className="absolute -left-20 -top-20 w-40 h-40 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-              <div className="absolute -right-20 -bottom-20 w-40 h-40 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-              <h1 className="text-6xl lg:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 leading-tight">
+      <div className="relative pt-20 pb-32 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-16">
+            <div className="lg:w-1/2 space-y-8 text-center lg:text-left">
+              <h1 className="text-5xl lg:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 leading-tight">
                 Discover Your Perfect Colors
               </h1>
-              <p className="text-xl text-gray-600 max-w-xl relative">
+              <p className="text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
                 Unlock your personal color palette with AI-powered analysis that enhances your natural beauty
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link
                   to="/demo"
                   className="group inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-full text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -106,42 +120,47 @@ const LandingPage = () => {
                   Learn More
                 </button>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="flex items-center space-x-2 text-sm text-gray-500 justify-center lg:justify-start">
                 <Zap className="h-4 w-4 text-pink-500" />
                 <span>Join over 100,000 users who've found their perfect colors</span>
               </div>
             </div>
             
-            <div className="lg:w-1/2 relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-200 to-pink-200 rounded-[2rem] blur-2xl opacity-30 transform rotate-6"></div>
-              <div className="relative bg-white/50 backdrop-blur-sm p-4 rounded-[2rem] shadow-xl">
+            <div className="lg:w-1/2 relative flex justify-center">
+              {/* Main container with pink background */}
+              <div className="relative w-[500px] h-[400px] bg-gradient-to-br from-pink-200 to-pink-300 rounded-[3rem] p-6">
+                {/* Main woman image */}
                 <img
                   src="https://images.pexels.com/photos/2065195/pexels-photo-2065195.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-                  alt="Woman applying makeup"
-                  className="rounded-2xl shadow-lg w-full h-[400px] object-cover"
+                  alt="Woman in pink outfit"
+                  className="w-full h-full object-cover rounded-[2.5rem]"
                 />
-                <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl shadow-lg p-4 flex items-center gap-3">
-                  <div className="p-2 bg-purple-50 rounded-lg">
-                    <Sparkle className="h-6 w-6 text-pink-500" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">AI-Powered Beauty Analysis</span>
-                </div>
               </div>
               
-              {/* Small floating images */}
-              <div className="absolute -top-10 -left-10 w-32 h-32 rounded-lg shadow-lg overflow-hidden border-4 border-white rotate-6">
+              {/* Floating makeup palette - top left */}
+              <div className="absolute -top-8 -left-8 w-28 h-28 bg-white rounded-2xl shadow-xl p-3 transform rotate-12 hover:rotate-6 transition-transform duration-300">
                 <img 
                   src="https://images.pexels.com/photos/2533266/pexels-photo-2533266.jpeg?auto=compress&cs=tinysrgb&w=200" 
-                  alt="Foundation swatches" 
-                  className="w-full h-full object-cover"
+                  alt="Makeup palette with lipstick" 
+                  className="w-full h-full object-cover rounded-xl"
                 />
               </div>
-              <div className="absolute -bottom-8 left-20 w-40 h-40 rounded-lg shadow-lg overflow-hidden border-4 border-white -rotate-3">
+              
+              {/* Floating makeup products - bottom left */}
+              <div className="absolute -bottom-6 -left-4 w-36 h-36 bg-white rounded-2xl shadow-xl p-3 transform -rotate-6 hover:rotate-0 transition-transform duration-300">
                 <img 
                   src="https://images.pexels.com/photos/2537930/pexels-photo-2537930.jpeg?auto=compress&cs=tinysrgb&w=200" 
-                  alt="Makeup products" 
-                  className="w-full h-full object-cover"
+                  alt="Black makeup products" 
+                  className="w-full h-full object-cover rounded-xl"
                 />
+              </div>
+              
+              {/* AI Badge - bottom right */}
+              <div className="absolute -bottom-4 -right-4 bg-white rounded-2xl shadow-xl px-6 py-4 flex items-center gap-3 border border-gray-100/50">
+                <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
+                  <Sparkle className="h-5 w-5 text-pink-600" />
+                </div>
+                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">AI-Powered Beauty Analysis</span>
               </div>
             </div>
           </div>
@@ -308,12 +327,13 @@ const LandingPage = () => {
                   <span className="text-gray-600">Color history & favorites</span>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowAuthModal(true)}
-                className="w-full mt-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-6 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              <Link
+                to="/demo"
+                className="w-full mt-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-6 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl inline-flex items-center justify-center"
               >
-                Upgrade to Premium
-              </button>
+                Get Started
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
             </div>
 
             {/* Enterprise Features */}
@@ -595,8 +615,6 @@ const LandingPage = () => {
         </div>
       </footer>
 
-      {/* Auth Modal */}
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 };
