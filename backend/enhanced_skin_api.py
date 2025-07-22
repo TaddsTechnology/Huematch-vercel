@@ -18,6 +18,7 @@ import logging
 from typing import List, Dict, Tuple, Optional
 import time
 import json
+import random
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -201,7 +202,11 @@ class EnhancedSkinAnalyzer:
             
         except Exception as e:
             logger.error(f"Monk tone matching error: {e}")
-            return "Monk 5", "#d7bd96", "#d7bd96", 0.0
+            # Randomly select fallback from all available Monk tones
+            fallback_tones = list(self.skin_tones.keys())
+            selected_tone = random.choice(fallback_tones)
+            fallback_hex = self.skin_tones[selected_tone]
+            return selected_tone, fallback_hex, fallback_hex, 0.0
     
     def calculate_confidence(self, seg_quality: float, color_conf: float, 
                            tone_sim: float, face_conf: float) -> float:

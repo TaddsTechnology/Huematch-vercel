@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Star, Sparkles, Crown, Shirt, Palette } from 'lucide-react';
 import ProductRecommendations from '../components/ProductRecommendations';
+import { API_ENDPOINTS, buildApiUrl } from '../config/api';
 
 // Consolidated interfaces
 interface Product {
@@ -124,7 +125,7 @@ const DemoRecommendations = () => {
             queryParams.append('skin_tone', monkSkinTone);
           }
           
-          const response = await fetch(`http://localhost:8000/api/color-recommendations?${queryParams.toString()}`);
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_RECOMMENDATIONS, Object.fromEntries(queryParams)));
           if (response.ok) {
             const data = await response.json();
             setColorRecommendations(data);
@@ -174,7 +175,7 @@ const DemoRecommendations = () => {
           }
           
           console.log(`Fetching makeup products with params: ${queryParams.toString()}`);
-          response = await fetch(`http://localhost:8000/data/?${queryParams.toString()}`);
+          response = await fetch(buildApiUrl(API_ENDPOINTS.MAKEUP_DATA, Object.fromEntries(queryParams)));
           
           if (!response.ok) {
             throw new Error(`Failed to fetch makeup recommendations: ${response.status} ${response.statusText}`);

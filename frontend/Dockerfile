@@ -33,5 +33,9 @@ ENV NODE_ENV=production
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
+# Install serve globally for production
+RUN npm install -g serve
+
 # Command to run the application
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+# Use PORT environment variable for Render compatibility
+CMD serve -s dist -l ${PORT:-3000}

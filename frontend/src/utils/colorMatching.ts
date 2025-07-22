@@ -350,10 +350,13 @@ export function getSeasonalType(skinToneHex: string): string {
   return getSeasonalTypeFromMonkTone(monkTone);
 }
 
+// Import API configuration
+import { API_ENDPOINTS, buildApiUrl } from '../config/api';
+
 // Function to fetch color suggestions from the backend API
 export const fetchColorSuggestions = async (skinTone: string): Promise<any> => {
   try {
-    const response = await fetch(`http://localhost:8000/color-suggestions?skin_tone=${encodeURIComponent(skinTone)}`);
+    const response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_SUGGESTIONS, { skin_tone: skinTone }));
     if (!response.ok) {
       throw new Error('Failed to fetch color suggestions');
     }

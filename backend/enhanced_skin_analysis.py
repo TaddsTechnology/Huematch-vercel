@@ -10,6 +10,7 @@ import mediapipe as mp
 import logging
 from typing import List, Dict, Tuple, Optional
 import time
+import random
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -220,7 +221,7 @@ class EnhancedSkinAnalyzer:
         if self.model is None:
             return {
                 'error': 'Model not loaded',
-                'monk_tone': 'Monk 5',
+                'monk_tone': random.choice(list(self.skin_tones.keys())),
                 'confidence': 0.0
             }
         
@@ -275,7 +276,7 @@ class EnhancedSkinAnalyzer:
             logger.error(f"Error processing face: {e}")
             return {
                 'error': str(e),
-                'monk_tone': 'Monk 5',
+                'monk_tone': random.choice(list(self.skin_tones.keys())),
                 'confidence': 0.0
             }
     

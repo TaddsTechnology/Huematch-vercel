@@ -123,8 +123,8 @@ def get_fallback_result() -> Dict:
     """
     Return a fallback result when analysis fails
     """
-    # Randomly select from common skin tones instead of always Monk05
-    fallback_tones = ['Monk 3', 'Monk 4', 'Monk 5', 'Monk 6']
+    # Randomly select from ALL available skin tones instead of just a few
+    fallback_tones = list(MONK_SKIN_TONES.keys())
     selected_tone = random.choice(fallback_tones)
     
     monk_number = selected_tone.split()[1]

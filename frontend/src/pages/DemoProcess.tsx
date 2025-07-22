@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ImageCapture from '../components/ImageCapture';
 import { Camera, Shield, Image, RefreshCw, Sparkle } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 // import { Client } from "@gradio/client"; // Use dynamic import instead
 
 // Add interface at the top of the file
@@ -28,7 +29,7 @@ const DemoProcess = () => {
       formData.append('file', imageBlob, 'uploaded-image.jpg');
       
       // Call the skin tone analysis API
-      const response = await fetch('http://localhost:8000/analyze-skin-tone', {
+      const response = await fetch(API_ENDPOINTS.ANALYZE_SKIN_TONE, {
         method: 'POST',
         body: formData,
       });

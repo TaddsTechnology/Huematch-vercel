@@ -5,7 +5,10 @@ import json
 import math
 import os
 from typing import List, Optional, Dict
-from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
+try:
+    from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
+except ImportError:
+    from prods_fastapi.color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
 from pathlib import Path
 import re
 import numpy as np
@@ -18,13 +21,18 @@ import random
 
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS for production deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=[
+        "https://*.render.com",  # Render domains
+        "http://localhost:3000",  # Local development
+        "http://localhost:5173",  # Vite dev server
+        "*"  # Allow all origins (remove for production if specific domains are known)
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 # Path to the processed data directory
@@ -625,15 +633,15 @@ def get_fallback_result() -> Dict:
     """
     Return a fallback result when analysis fails
     """
-    # Randomly select from common skin tones instead of always Monk05
-    fallback_tones = ['Monk 3', 'Monk 4', 'Monk 5', 'Monk 6']
-    selected_tone = random.choice(fallback_tones)
+    # Randomly select from ALL available Monk skin tones instead of just a few
+    all_tone_names = list(MONK_SKIN_TONES.keys())
+    selected_tone = random.choice(all_tone_names)
     
     monk_number = selected_tone.split()[1]
     monk_id = f"Monk{monk_number.zfill(2)}"
     monk_hex = MONK_SKIN_TONES[selected_tone]
     
-    logger.warning(f"Using fallback skin tone: {selected_tone}")
+    logger.warning(f"Using random fallback skin tone from all available options: {selected_tone}")
     
     return {
         'monk_skin_tone': monk_id,
@@ -641,9 +649,9 @@ def get_fallback_result() -> Dict:
         'monk_hex': monk_hex,
         'derived_hex_code': monk_hex,
         'dominant_rgb': list(hex_to_rgb(monk_hex)),
-        'confidence': 0.3,  # Lower confidence for fallback
+        'confidence': 0.2,  # Lower confidence for random fallback
         'success': False,  # Indicate this is a fallback
-        'message': 'Using fallback skin tone due to analysis failure'
+        'message': 'Using random fallback skin tone due to analysis failure'
     }
 
 def color_distance(color1, color2):
@@ -1889,3 +1897,7 @@ async def health_check():
         "message": "Skin tone analysis API is running",
         "available_tones": list(MONK_SKIN_TONES.keys())
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
