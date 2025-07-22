@@ -107,17 +107,20 @@ const DemoRecommendations = () => {
     return null;
   };
 
-  // Fetch color recommendations
+  // Fetch color recommendations with enhanced error handling and fallbacks
   useEffect(() => {
     const fetchColorRecommendations = async () => {
       if (activeTab === 'colors' && (skinHex || monkSkinTone)) {
         try {
+          console.log('Fetching color recommendations for:', { skinHex, monkSkinTone });
+          
           // Build query parameters
           const queryParams = new URLSearchParams();
           
-          // Add hex color if available
+          // Add hex color if available (clean format)
           if (skinHex) {
-            queryParams.append('hex_color', skinHex.replace('#', ''));
+            const cleanHex = skinHex.startsWith('#') ? skinHex.substring(1) : skinHex;
+            queryParams.append('hex_color', cleanHex);
           }
           
           // Add Monk skin tone if available
@@ -125,26 +128,42 @@ const DemoRecommendations = () => {
             queryParams.append('skin_tone', monkSkinTone);
           }
           
-          // First try the database endpoint
-          let response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(queryParams)));
+          console.log('API request parameters:', Object.fromEntries(queryParams));
           
-          // If database endpoint fails, fallback to original API
-          if (!response.ok) {
-            console.log('Database endpoint failed, falling back to original color recommendations API');
-            response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_RECOMMENDATIONS, Object.fromEntries(queryParams)));
-          }
+          // Try enhanced color recommendations API first
+          let response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_RECOMMENDATIONS, Object.fromEntries(queryParams)));
+          
           if (response.ok) {
             const data = await response.json();
+            console.log('Color recommendations response:', data);
             setColorRecommendations(data);
+            setError(null); // Clear any previous errors
           } else {
-            console.error('Failed to fetch color recommendations');
-            // TODO: Uncomment when proper data is available
-            // setError('Failed to fetch color recommendations. Please try again later.');
+            console.error('Color recommendations API failed with status:', response.status);
+            
+            // Try the database endpoint as fallback
+            try {
+              const fallbackResponse = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(queryParams)));
+              if (fallbackResponse.ok) {
+                const fallbackData = await fallbackResponse.json();
+                console.log('Fallback color recommendations response:', fallbackData);
+                setColorRecommendations(fallbackData);
+                setError(null);
+              } else {
+                throw new Error('Both color recommendation endpoints failed');
+              }
+            } catch (fallbackError) {
+              console.error('Fallback API also failed:', fallbackError);
+              // Use local color matching as final fallback
+              const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
+              setColorRecommendations(localRecommendations);
+            }
           }
         } catch (err) {
           console.error('Error fetching color recommendations:', err);
-          // TODO: Uncomment when proper data is available  
-          // setError('Error connecting to the server. Please check your connection and try again.');
+          // Use local color matching as fallback
+          const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
+          setColorRecommendations(localRecommendations);
         }
       }
     };
@@ -372,6 +391,146 @@ const DemoRecommendations = () => {
     });
     
     return closestMatch.id;
+  };
+
+  // Local color recommendations function as fallback
+  const getLocalColorRecommendations = (skinHex: string, monkSkinTone: string): ColorRecommendations => {
+    // Enhanced color palettes based on Monk skin tone
+    const colorPalettes: { [key: string]: ColorInfo[] } = {
+      'Monk01': [
+        { name: "Navy Blue", hex: "#003057" },
+        { name: "Soft Pink", hex: "#F395C7" },
+        { name: "Lavender", hex: "#A277A6" },
+        { name: "Emerald", hex: "#009775" },
+        { name: "Burgundy", hex: "#890C58" },
+        { name: "Cobalt Blue", hex: "#0057B8" },
+        { name: "Soft Coral", hex: "#F88379" },
+        { name: "Powder Blue", hex: "#9BCBEB" }
+      ],
+      'Monk02': [
+        { name: "Powder Blue", hex: "#9BCBEB" },
+        { name: "Soft Plum", hex: "#86647A" },
+        { name: "Dusty Rose", hex: "#D592AA" },
+        { name: "Slate Blue", hex: "#57728B" },
+        { name: "Soft Teal", hex: "#00B0B9" },
+        { name: "Mauve", hex: "#C4A4A7" },
+        { name: "Light Coral", hex: "#F08080" },
+        { name: "Periwinkle", hex: "#CCCCFF" }
+      ],
+      'Monk03': [
+        { name: "Peach", hex: "#FCC89B" },
+        { name: "Mint", hex: "#A5DFD3" },
+        { name: "Coral", hex: "#FF8D6D" },
+        { name: "Light Yellow", hex: "#F5E1A4" },
+        { name: "Aqua", hex: "#A4DBE8" },
+        { name: "Soft Pink", hex: "#FAAA8D" },
+        { name: "Apricot", hex: "#FBCEB1" },
+        { name: "Sky Blue", hex: "#87CEEB" }
+      ],
+      'Monk04': [
+        { name: "Warm Beige", hex: "#FDAA63" },
+        { name: "Golden Yellow", hex: "#FFB81C" },
+        { name: "Apricot", hex: "#FF8F1C" },
+        { name: "Coral", hex: "#FFA38B" },
+        { name: "Warm Green", hex: "#74AA50" },
+        { name: "Turquoise", hex: "#2DCCD3" },
+        { name: "Honey", hex: "#E6C200" },
+        { name: "Warm Orange", hex: "#FF8C00" }
+      ],
+      'Monk05': [
+        { name: "Turquoise", hex: "#008EAA" },
+        { name: "Clear Yellow", hex: "#FFCD00" },
+        { name: "Bright Coral", hex: "#FF8D6D" },
+        { name: "Violet", hex: "#963CBD" },
+        { name: "Bright Green", hex: "#00A499" },
+        { name: "Watermelon", hex: "#E40046" },
+        { name: "Amber", hex: "#FFBF00" },
+        { name: "Royal Blue", hex: "#4169E1" }
+      ],
+      'Monk06': [
+        { name: "Mustard", hex: "#B89D18" },
+        { name: "Rust", hex: "#9D4815" },
+        { name: "Olive", hex: "#A09958" },
+        { name: "Burnt Orange", hex: "#C4622D" },
+        { name: "Teal", hex: "#00778B" },
+        { name: "Forest Green", hex: "#205C40" },
+        { name: "Copper", hex: "#B87333" },
+        { name: "Deep Gold", hex: "#B8860B" }
+      ],
+      'Monk07': [
+        { name: "Burgundy", hex: "#890C58" },
+        { name: "Chocolate", hex: "#5C462B" },
+        { name: "Deep Teal", hex: "#00594C" },
+        { name: "Rust", hex: "#9D4815" },
+        { name: "Olive", hex: "#5E7E29" },
+        { name: "Terracotta", hex: "#A6631B" },
+        { name: "Forest Green", hex: "#228B22" },
+        { name: "Bronze", hex: "#CD7F32" }
+      ],
+      'Monk08': [
+        { name: "Hot Pink", hex: "#E3006D" },
+        { name: "Cobalt Blue", hex: "#0057B8" },
+        { name: "True Red", hex: "#CE0037" },
+        { name: "Violet", hex: "#963CBD" },
+        { name: "Emerald", hex: "#009775" },
+        { name: "Gold", hex: "#FFB81C" },
+        { name: "Royal Purple", hex: "#800080" },
+        { name: "Bright Yellow", hex: "#FFCD00" }
+      ],
+      'Monk09': [
+        { name: "Deep Claret", hex: "#890C58" },
+        { name: "Forest Green", hex: "#00594C" },
+        { name: "True Red", hex: "#CE0037" },
+        { name: "Navy", hex: "#002D72" },
+        { name: "Amethyst", hex: "#84329B" },
+        { name: "White", hex: "#FEFEFE" },
+        { name: "Silver", hex: "#C0C0C0" },
+        { name: "Deep Purple", hex: "#301934" }
+      ],
+      'Monk10': [
+        { name: "Hot Pink", hex: "#E3006D" },
+        { name: "Cobalt Blue", hex: "#0057B8" },
+        { name: "True Red", hex: "#CE0037" },
+        { name: "Bright Yellow", hex: "#FFCD00" },
+        { name: "Emerald", hex: "#009775" },
+        { name: "White", hex: "#FEFEFE" },
+        { name: "Electric Blue", hex: "#0000FF" },
+        { name: "Bright Green", hex: "#66FF00" }
+      ]
+    };
+
+    // Get colors for the current Monk skin tone, fallback to Monk05 if not found
+    const colors = colorPalettes[monkSkinTone] || colorPalettes['Monk05'] || [
+      { name: "Navy Blue", hex: "#000080" },
+      { name: "Forest Green", hex: "#228B22" },
+      { name: "Burgundy", hex: "#800020" },
+      { name: "Charcoal Gray", hex: "#36454F" },
+      { name: "Cream White", hex: "#F5F5DC" },
+      { name: "Soft Pink", hex: "#FFB6C1" }
+    ];
+
+    // Map Monk skin tone to seasonal type
+    const seasonalTypeMap: { [key: string]: string } = {
+      'Monk01': 'Light Spring',
+      'Monk02': 'Light Spring', 
+      'Monk03': 'Clear Spring',
+      'Monk04': 'Warm Spring',
+      'Monk05': 'Soft Autumn',
+      'Monk06': 'Warm Autumn',
+      'Monk07': 'Deep Autumn',
+      'Monk08': 'Deep Winter',
+      'Monk09': 'Cool Winter',
+      'Monk10': 'Clear Winter'
+    };
+
+    const seasonalType = seasonalTypeMap[monkSkinTone] || 'Universal';
+
+    return {
+      colors_that_suit: colors,
+      seasonal_type: seasonalType,
+      monk_skin_tone: monkSkinTone,
+      message: "These color recommendations are based on your Monk skin tone analysis and seasonal color theory."
+    };
   };
 
   return (

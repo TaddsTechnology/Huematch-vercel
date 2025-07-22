@@ -28,8 +28,36 @@ try:
     from database import get_database, ColorPalette, create_tables, init_color_palette_data
 except ImportError:
     from prods_fastapi.database import get_database, ColorPalette, create_tables, init_color_palette_data
+    
+# Import the new color service - commented out as color_service.py doesn't exist
+# try:
+#     from color_service import color_palette_service, get_comprehensive_recommendations
+# except ImportError:
+#     from prods_fastapi.color_service import color_palette_service, get_comprehensive_recommendations
+
+
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import color routes
+try:
+    from color_routes import color_router
+    COLOR_ROUTER_AVAILABLE = True
+except ImportError:
+    try:
+        from prods_fastapi.color_routes import color_router
+        COLOR_ROUTER_AVAILABLE = True
+    except ImportError:
+        logger.warning("color_routes module not found - color endpoints will not be available")
+        color_router = None
+        COLOR_ROUTER_AVAILABLE = False
 
 app = FastAPI()
+
+# Include color router only if available
+if COLOR_ROUTER_AVAILABLE and color_router:
+    app.include_router(color_router)
 
 # Initialize database on startup
 @app.on_event("startup")
@@ -1674,13 +1702,13 @@ async def get_color_palettes_from_db(
 
 @app.get("/api/color-recommendations")
 async def get_color_recommendations(
-    skin_tone: str = Query(None, description="Skin tone category (e.g., 'Winter', 'Summer')"),
+    skin_tone: str = Query(None, description="Skin tone category (e.g., 'Winter', 'Summer', 'Monk01-10')"),
     hex_color: str = Query(None, description="Hex color code of the skin tone (e.g., '#f6ede4')")
 ):
     """
-    Get color recommendations based on skin tone.
+    Get comprehensive color recommendations based on Monk skin tone and seasonal color analysis.
     
-    Returns only colors that suit the user's skin tone.
+    Returns colors that suit the user's skin tone with scientific color theory backing.
     """
     # Process Monk skin tone format if provided
     monk_id = None
@@ -1714,10 +1742,40 @@ async def get_color_recommendations(
         except Exception as e:
             print(f"Error loading seasonal_palettes.json: {e}")
     
-    # Enhanced color palettes for each seasonal type
-    enhanced_palettes = {
-        "Clear Spring": [
-            {"name": "Light Yellow", "hex": "#FFF9D7"},
+    # Load color recommendations from JSON file
+    color_recommendations_file = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'color_recommendations.json')
+    enhanced_palettes = {}
+    
+    if os.path.exists(color_recommendations_file):
+        try:
+            with open(color_recommendations_file, 'r', encoding='utf-8') as f:
+                color_data = json.load(f)
+                
+            # Map skin tones to seasonal types and load their color palettes
+            skin_tone_to_seasonal = {
+                'Fair': {'Cool': 'Cool Winter', 'Warm': 'Warm Spring', 'Neutral': 'Light Spring'},
+                'Medium': {'Cool': 'Cool Summer', 'Warm': 'Warm Autumn', 'Neutral': 'Soft Autumn'}, 
+                'Olive': {'Cool': 'Deep Winter', 'Warm': 'Deep Autumn', 'Neutral': 'Soft Autumn'},
+                'Dark': {'Cool': 'Deep Winter', 'Warm': 'Deep Autumn', 'Neutral': 'Deep Winter'},
+                'Deep': {'Cool': 'Clear Winter', 'Warm': 'Warm Autumn', 'Neutral': 'Deep Winter'}
+            }
+            
+            # Convert the loaded data to seasonal types
+            for skin_tone, undertones in color_data.items():
+                for undertone, colors in undertones.items():
+                    seasonal_key = skin_tone_to_seasonal.get(skin_tone, {}).get(undertone, f"{skin_tone} {undertone}")
+                    enhanced_palettes[seasonal_key] = colors
+                    
+            logger.info(f"Loaded {len(enhanced_palettes)} seasonal color palettes from JSON file")
+            
+        except Exception as e:
+            logger.error(f"Error loading color recommendations file: {e}")
+    
+    # Fallback enhanced color palettes for each seasonal type
+    if not enhanced_palettes:
+        enhanced_palettes = {
+            "Clear Spring": [
+                {"name": "Light Yellow", "hex": "#FFF9D7"},
             {"name": "Pale Yellow", "hex": "#F1EB9C"},
             {"name": "Cream Yellow", "hex": "#F5E1A4"},
             {"name": "Peach", "hex": "#F8CFA9"},
@@ -2066,23 +2124,24 @@ async def get_color_recommendations(
                     "message": "We've matched your skin tone to colors that will complement your natural complexion."
                 }
     
-    # Default response with generic color recommendations
+    # Default response with scientific color recommendations based on universal color theory
     return {
         "colors_that_suit": [
             {"name": "Navy Blue", "hex": "#000080"},
             {"name": "Forest Green", "hex": "#228B22"},
             {"name": "Burgundy", "hex": "#800020"},
             {"name": "Charcoal Gray", "hex": "#36454F"},
+            {"name": "Cream White", "hex": "#F5F5DC"},
             {"name": "Deep Purple", "hex": "#301934"},
-            {"name": "Olive Green", "hex": "#556B2F"},
             {"name": "Teal", "hex": "#008080"},
-            {"name": "Maroon", "hex": "#800000"},
+            {"name": "Soft Pink", "hex": "#FFB6C1"},
             {"name": "Royal Blue", "hex": "#4169E1"},
             {"name": "Emerald Green", "hex": "#50C878"},
-            {"name": "Ruby Red", "hex": "#E0115F"},
-            {"name": "Sapphire Blue", "hex": "#0F52BA"}
+            {"name": "Coral", "hex": "#FF7F50"},
+            {"name": "Golden Yellow", "hex": "#FFD700"}
         ],
-        "message": "We're working on expanding our color recommendations. Stay tuned for more colors!"
+        "seasonal_type": "Universal",
+        "message": "These universally flattering colors complement most skin tones. For personalized recommendations, please provide your Monk skin tone (Monk01-10)."
     }
 
 @app.post("/analyze-skin-tone")

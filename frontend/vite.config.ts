@@ -18,16 +18,21 @@ export default defineConfig({
     },
   },
   server: {
-    host: 'localhost',
+    host: '127.0.0.1',
     port: 3001,
     hmr: {
-      port: 3001,
-      host: 'localhost',
-      clientPort: 3001
+      port: 3002,
+      host: '127.0.0.1',
+      clientPort: 3002,
+      overlay: false
     },
-    strictPort: true,
+    strictPort: false,
     open: true,
-    force: true,
+    cors: true,
+    watch: {
+      usePolling: true,
+      interval: 100
+    }
   },
   preview: {
     host: 'localhost',
