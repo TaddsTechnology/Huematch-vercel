@@ -13,15 +13,13 @@ import ContactPage from './pages/ContactPage';
 
 function App() {
   return (
-    <Router future={{ v7_relativeSplatPath: true }}>
+    <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/demo">
-          <Route index element={<Demo />} />
-          <Route path="process" element={<DemoProcess />} />
-          <Route path="try-on" element={<DemoTryOn />} />
-          <Route path="recommendations" element={<DemoRecommendations />} />
-        </Route>
+        <Route path="/demo" element={<Demo />} />
+        <Route path="/demo/process" element={<DemoProcess />} />
+        <Route path="/demo/try-on" element={<DemoTryOn />} />
+        <Route path="/demo/recommendations" element={<DemoRecommendations />} />
         <Route path="/colors/:skinTone" element={<ColorPalettePage />} />
         <Route path="/monk-colors/:monkId" element={<MonkColorPalettePage />} />
         <Route path="/resources" element={<ResourcesPage />} />

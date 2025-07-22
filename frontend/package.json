@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@gradio/client": "^1.15.5",
+    "@gradio/client": "^1.11.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@types/json-schema": "^7.0.15",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/tinycolor2": "^1.4.6",
