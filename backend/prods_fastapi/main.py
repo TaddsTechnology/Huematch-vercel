@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Query, HTTPException, File, UploadFile
+from fastapi import FastAPI, Query, HTTPException, File, UploadFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 import pandas as pd
 import json
 import math
@@ -23,8 +24,23 @@ sys.path.append('..')
 from advanced_recommendation_engine import get_recommendation_engine
 from performance_optimizer import performance_optimizer, cached, skin_tone_cache
 from ab_testing_system import ab_testing_system, create_ab_test, get_ab_test_recommendations, track_ab_test_event, RecommendationAlgorithm
+try:
+    from database import get_database, ColorPalette, create_tables, init_color_palette_data
+except ImportError:
+    from prods_fastapi.database import get_database, ColorPalette, create_tables, init_color_palette_data
 
 app = FastAPI()
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables and data on startup"""
+    try:
+        create_tables()
+        init_color_palette_data()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
 
 # Configure CORS for production deployment
 app.add_middleware(
@@ -917,22 +933,24 @@ def get_diverse_recommendations(products, user_preferences, skin_tone=None, limi
     return diverse_products
 
 # Load data files with fallback options
-def load_data_file(primary_path, fallback_path, default_df=None):
+def load_data_file(primary_path, fallback_path, default_df=None, show_warnings=False):
     """Load a data file with fallback options."""
     if os.path.exists(primary_path):
         return pd.read_csv(primary_path).fillna("")
     elif os.path.exists(fallback_path):
         return pd.read_csv(fallback_path).fillna("")
     else:
-        print(f"Warning: Neither {primary_path} nor {fallback_path} found.")
+        if show_warnings:
+            print(f"Warning: Neither {primary_path} nor {fallback_path} found.")
         return default_df if default_df is not None else pd.DataFrame()
 
-# Load CSV data for H&M products
-df_hm = load_data_file(
-    "../processed_data/hm_products_hm_products.csv",
-    "hm_products2.csv",
-    pd.DataFrame(columns=["Product Name", "Price", "Image URL", "Product Type", "brand", "gender", "baseColour", "masterCategory", "subCategory"])
-)
+# Load CSV data for H&M products (commented out - using database now)
+# df_hm = load_data_file(
+#     "../processed_data/hm_products_hm_products.csv",
+#     "hm_products2.csv",
+#     pd.DataFrame(columns=["Product Name", "Price", "Image URL", "Product Type", "brand", "gender", "baseColour", "masterCategory", "subCategory"])
+# )
+df_hm = pd.DataFrame(columns=["Product Name", "Price", "Image URL", "Product Type", "brand", "gender", "baseColour", "masterCategory", "subCategory"])
 
 # Load CSV data for Ulta & Sephora products
 df_sephora = load_data_file(
@@ -941,25 +959,28 @@ df_sephora = load_data_file(
     pd.DataFrame(columns=["product", "brand", "price", "imgSrc", "mst", "hex", "desc", "product_type"])
 )
 
-# Load outfit data from the specified CSV files
-df_outfit1 = load_data_file(
-    "../processed_data/outfit_products_outfit1.csv",
-    "outfit_products_outfit1.csv",
-    pd.DataFrame(columns=["products", "brand", "Product Type", "gender", "baseColour", "masterCategory", "subCategory"])
-)
+# Load outfit data from the specified CSV files (commented out - coming soon feature)
+# df_outfit1 = load_data_file(
+#     "../processed_data/outfit_products_outfit1.csv",
+#     "outfit_products_outfit1.csv",
+#     pd.DataFrame(columns=["products", "brand", "Product Type", "gender", "baseColour", "masterCategory", "subCategory"])
+# )
+df_outfit1 = pd.DataFrame(columns=["products", "brand", "Product Type", "gender", "baseColour", "masterCategory", "subCategory"])
 
-df_outfit2 = load_data_file(
-    "../processed_data/outfit_products_outfit2.csv",
-    "outfit_products_outfit2.csv",
-    pd.DataFrame(columns=["products", "brand", "Product Type", "gender", "baseColour", "masterCategory", "subCategory"])
-)
+# df_outfit2 = load_data_file(
+#     "../processed_data/outfit_products_outfit2.csv",
+#     "outfit_products_outfit2.csv",
+#     pd.DataFrame(columns=["products", "brand", "Product Type", "gender", "baseColour", "masterCategory", "subCategory"])
+# )
+df_outfit2 = pd.DataFrame(columns=["products", "brand", "Product Type", "gender", "baseColour", "masterCategory", "subCategory"])
 
-# Load apparel data
-df_apparel = load_data_file(
-    "processed_data/outfit_products.csv",
-    "apparel.csv",
-    pd.DataFrame(columns=["Product Name", "Price", "Image URL", "gender", "baseColour", "masterCategory", "subCategory"])
-)
+# Load apparel data (commented out - coming soon feature) 
+# df_apparel = load_data_file(
+#     "processed_data/outfit_products.csv",
+#     "apparel.csv",
+#     pd.DataFrame(columns=["Product Name", "Price", "Image URL", "gender", "baseColour", "masterCategory", "subCategory"])
+# )
+df_apparel = pd.DataFrame(columns=["Product Name", "Price", "Image URL", "gender", "baseColour", "masterCategory", "subCategory"])
 
 # Load color suggestions
 df_color_suggestions = load_data_file(
@@ -1512,6 +1533,144 @@ def get_makeup_types():
             "Lipstick", "Lip Gloss", "Lip Liner", "Primer", "Setting Spray"
         ]
         return {"types": default_types}
+
+@app.get("/api/color-palettes-db")
+async def get_color_palettes_from_db(
+    skin_tone: str = Query(None, description="Skin tone category (e.g., 'Clear Winter', 'Warm Spring')"),
+    monk_tone: str = Query(None, description="Monk skin tone (e.g., 'Monk01', 'Monk03')"),
+    hex_color: str = Query(None, description="Hex color code of the skin tone (e.g., '#f6ede4')"),
+    db: Session = Depends(get_database)
+):
+    """
+    Get comprehensive color palettes from the database based on skin tone.
+    
+    Returns color palettes, hex codes, and suggestions from PostgreSQL database.
+    """
+    try:
+        seasonal_type = None
+        
+        # Determine seasonal type from various inputs
+        if skin_tone:
+            seasonal_type = skin_tone
+        elif monk_tone:
+            # Handle different formats (e.g., "Monk03", "Monk 3")
+            monk_id = monk_tone
+            if " " in monk_tone:
+                parts = monk_tone.split()
+                if len(parts) >= 2 and parts[0].lower() == "monk":
+                    try:
+                        monk_num = int(parts[1])
+                        monk_id = f"Monk{monk_num:02d}"
+                    except ValueError:
+                        monk_id = monk_tone
+            
+            # Get seasonal type from monk tone mapping
+            if monk_id in monk_to_seasonal:
+                seasonal_type = monk_to_seasonal[monk_id]
+                
+        # Get color palette data
+        palette_query = db.query(ColorPalette)
+        if seasonal_type:
+            palette_query = palette_query.filter(ColorPalette.skin_tone == seasonal_type)
+        
+        palettes = palette_query.all()
+        
+        # Get hex color data
+        hex_data_query = db.query(ColorHexData)
+        if seasonal_type:
+            hex_data_query = hex_data_query.filter(ColorHexData.seasonal_type == seasonal_type)
+        
+        hex_data_results = hex_data_query.all()
+        
+        # Get color suggestions
+        suggestions_query = db.query(ColorSuggestions)
+        if seasonal_type:
+            suggestions_query = suggestions_query.filter(ColorSuggestions.skin_tone == seasonal_type)
+        
+        suggestions_results = suggestions_query.all()
+        
+        # Compile comprehensive response
+        colors_that_suit = []
+        colors_to_avoid = []
+        additional_hex_codes = []
+        text_suggestions = []
+        
+        # Add palette colors
+        if palettes:
+            palette = palettes[0]
+            colors_that_suit.extend(palette.flattering_colors or [])
+            colors_to_avoid.extend(palette.colors_to_avoid or [])
+            description = palette.description
+        else:
+            description = f"Color recommendations for {seasonal_type or 'your skin tone'}"
+        
+        # Add hex color data
+        for hex_data in hex_data_results:
+            additional_hex_codes.extend(hex_data.hex_codes or [])
+        
+        # Add text suggestions
+        for suggestion in suggestions_results:
+            if suggestion.suitable_colors_text:
+                text_suggestions.append(suggestion.suitable_colors_text)
+        
+        # If no specific data found, provide default comprehensive palette
+        if not colors_that_suit and not additional_hex_codes:
+            colors_that_suit = [
+                {"name": "Navy Blue", "hex": "#000080"},
+                {"name": "Forest Green", "hex": "#228B22"},
+                {"name": "Burgundy", "hex": "#800020"},
+                {"name": "Charcoal Gray", "hex": "#36454F"},
+                {"name": "Cream White", "hex": "#F5F5DC"},
+                {"name": "Soft Pink", "hex": "#FFB6C1"}
+            ]
+        
+        # Convert hex codes to color objects if needed
+        hex_color_objects = []
+        for i, hex_code in enumerate(additional_hex_codes[:10]):  # Limit to 10 additional colors
+            hex_color_objects.append({
+                "name": f"Recommended Color {i+1}",
+                "hex": hex_code
+            })
+        
+        # Merge all colors (avoid duplicates)
+        all_colors = colors_that_suit.copy()
+        existing_hex = {color["hex"] for color in all_colors}
+        
+        for hex_color_obj in hex_color_objects:
+            if hex_color_obj["hex"] not in existing_hex:
+                all_colors.append(hex_color_obj)
+                existing_hex.add(hex_color_obj["hex"])
+        
+        response = {
+            "colors_that_suit": all_colors,
+            "colors_to_avoid": colors_to_avoid,
+            "seasonal_type": seasonal_type,
+            "monk_skin_tone": monk_tone,
+            "description": description,
+            "text_suggestions": text_suggestions,
+            "additional_hex_codes": additional_hex_codes,
+            "message": "Comprehensive color recommendations from database",
+            "data_sources": {
+                "palettes": len(palettes),
+                "hex_data_sets": len(hex_data_results),
+                "text_suggestions": len(suggestions_results)
+            }
+        }
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error fetching color palettes from database: {e}")
+        return {
+            "colors_that_suit": [
+                {"name": "Navy Blue", "hex": "#000080"},
+                {"name": "Forest Green", "hex": "#228B22"},
+                {"name": "Burgundy", "hex": "#800020"},
+                {"name": "Charcoal Gray", "hex": "#36454F"}
+            ],
+            "message": "Error loading from database, showing default colors",
+            "error": str(e)
+        }
 
 @app.get("/api/color-recommendations")
 async def get_color_recommendations(

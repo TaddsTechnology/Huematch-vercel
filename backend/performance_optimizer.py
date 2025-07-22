@@ -15,6 +15,7 @@ import json
 import numpy as np
 from dataclasses import dataclass
 import threading
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,9 @@ class PerformanceOptimizer:
             self.redis_client.ping()
             logger.info("Redis cache initialized successfully")
         except Exception as e:
-            logger.warning(f"Redis unavailable, using local cache: {e}")
+            # Silently fall back to local cache for production deployment
+            if "production" not in os.environ.get("ENV", "").lower():
+                logger.info(f"Redis not available, using local cache: {e}")
             self.redis_client = None
     
     def generate_cache_key(self, *args, **kwargs) -> str:

@@ -63,3 +63,7 @@ wheel==0.45.1
 wrapt==1.17.2
 Pillow==10.4.0
 python-multipart==0.0.12
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+alembic==1.13.1
+redis==5.0.1

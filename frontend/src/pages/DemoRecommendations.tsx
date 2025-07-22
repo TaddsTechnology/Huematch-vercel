@@ -74,7 +74,7 @@ const DemoRecommendations = () => {
   const [skinAnalysis, setSkinAnalysis] = useState<SkinAnalysisResult | null>(null);
   const [skinHex, setSkinHex] = useState<string>('#d7bd96'); // Default skin hex
   const [monkSkinTone, setMonkSkinTone] = useState<string>('Monk05'); // Default Monk skin tone
-  const [activeTab, setActiveTab] = useState<'makeup' | 'outfit' | 'colors'>('makeup');
+  const [activeTab, setActiveTab] = useState<'makeup' | 'outfit' | 'colors' | 'products'>('makeup');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -125,17 +125,26 @@ const DemoRecommendations = () => {
             queryParams.append('skin_tone', monkSkinTone);
           }
           
-          const response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_RECOMMENDATIONS, Object.fromEntries(queryParams)));
+          // First try the database endpoint
+          let response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(queryParams)));
+          
+          // If database endpoint fails, fallback to original API
+          if (!response.ok) {
+            console.log('Database endpoint failed, falling back to original color recommendations API');
+            response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_RECOMMENDATIONS, Object.fromEntries(queryParams)));
+          }
           if (response.ok) {
             const data = await response.json();
             setColorRecommendations(data);
           } else {
             console.error('Failed to fetch color recommendations');
-            setError('Failed to fetch color recommendations. Please try again later.');
+            // TODO: Uncomment when proper data is available
+            // setError('Failed to fetch color recommendations. Please try again later.');
           }
         } catch (err) {
           console.error('Error fetching color recommendations:', err);
-          setError('Error connecting to the server. Please check your connection and try again.');
+          // TODO: Uncomment when proper data is available  
+          // setError('Error connecting to the server. Please check your connection and try again.');
         }
       }
     };
@@ -284,7 +293,8 @@ const DemoRecommendations = () => {
         setLoading(false);
       } catch (err) {
         console.error('Error:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        // TODO: Uncomment when proper data is available
+        // setError(err instanceof Error ? err.message : 'An error occurred');
         setLoading(false);
         setProducts([]); // Clear products on error
       }
@@ -420,6 +430,17 @@ const DemoRecommendations = () => {
               <span>Outfits</span>
             </button>
             <button
+              onClick={() => setActiveTab('products')}
+              className={`px-6 py-2 rounded-lg flex items-center space-x-2 ${
+                activeTab === 'products'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-purple-50'
+              }`}
+            >
+              <Crown className="h-5 w-5" />
+              <span>Products</span>
+            </button>
+            <button
               onClick={() => setActiveTab('colors')}
               className={`px-6 py-2 rounded-lg flex items-center space-x-2 ${
                 activeTab === 'colors'
@@ -447,27 +468,62 @@ const DemoRecommendations = () => {
           ) : (
             <>
               {activeTab === 'makeup' ? (
-                <ProductRecommendations 
-                  skinTone={skinAnalysis?.label || ''}
-                  products={products}
-                  type={activeTab}
-                  totalItems={totalItems}
-                  totalPages={totalPages}
-                  currentPage={currentPage}
-                  onPageChange={handlePageChange}
-                  onFilterChange={handleFilterChange}
-                  availableFilters={availableFilters}
-                />
+                // Coming Soon banner for makeup
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-8 text-white text-center shadow-xl">
+                  <div className="max-w-2xl mx-auto">
+                    <Sparkles className="h-16 w-16 mx-auto mb-4 opacity-90" />
+                    <h2 className="text-3xl font-bold mb-4">Beauty Recommendations</h2>
+                    <div className="bg-white bg-opacity-20 rounded-lg px-6 py-3 inline-block mb-4">
+                      <span className="text-xl font-semibold">Coming Soon!</span>
+                    </div>
+                    <p className="text-lg mb-6">
+                      We're working on bringing you personalized makeup recommendations based on your unique skin tone. 
+                      Our beauty experts are curating the perfect products just for you!
+                    </p>
+                    <div className="flex justify-center items-center space-x-2 text-sm opacity-90">
+                      <Crown className="h-4 w-4" />
+                      <span>Premium makeup recommendations launching soon</span>
+                    </div>
+                  </div>
+                </div>
+              ) : activeTab === 'products' ? (
+                // Coming Soon banner for products
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl p-8 text-white text-center shadow-xl">
+                  <div className="max-w-2xl mx-auto">
+                    <Crown className="h-16 w-16 mx-auto mb-4 opacity-90" />
+                    <h2 className="text-3xl font-bold mb-4">Premium Products</h2>
+                    <div className="bg-white bg-opacity-20 rounded-lg px-6 py-3 inline-block mb-4">
+                      <span className="text-xl font-semibold">Coming Soon!</span>
+                    </div>
+                    <p className="text-lg mb-6">
+                      We're curating exclusive premium products tailored to your skin tone analysis. 
+                      Get ready for personalized product recommendations from top brands!
+                    </p>
+                    <div className="flex justify-center items-center space-x-2 text-sm opacity-90">
+                      <Sparkles className="h-4 w-4" />
+                      <span>Premium product collection launching soon</span>
+                    </div>
+                  </div>
+                </div>
               ) : activeTab === 'outfit' ? (
-                <ProductRecommendations 
-                  skinTone={skinAnalysis?.label || ''}
-                  products={products}
-                  type={activeTab}
-                  totalItems={totalItems}
-                  totalPages={totalPages}
-                  currentPage={currentPage}
-                  onPageChange={handlePageChange}
-                />
+                // Coming Soon banner for outfits
+                <div className="bg-gradient-to-r from-green-500 to-teal-500 rounded-xl p-8 text-white text-center shadow-xl">
+                  <div className="max-w-2xl mx-auto">
+                    <Shirt className="h-16 w-16 mx-auto mb-4 opacity-90" />
+                    <h2 className="text-3xl font-bold mb-4">Outfit Recommendations</h2>
+                    <div className="bg-white bg-opacity-20 rounded-lg px-6 py-3 inline-block mb-4">
+                      <span className="text-xl font-semibold">Coming Soon!</span>
+                    </div>
+                    <p className="text-lg mb-6">
+                      We're curating personalized outfit recommendations that perfectly match your skin tone analysis. 
+                      Get ready for style suggestions that will make you look and feel amazing!
+                    </p>
+                    <div className="flex justify-center items-center space-x-2 text-sm opacity-90">
+                      <Sparkles className="h-4 w-4" />
+                      <span>Personalized outfit styling launching soon</span>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 // Color Palettes Tab - Simplified to only show colors that suit
                 <div className="space-y-8">

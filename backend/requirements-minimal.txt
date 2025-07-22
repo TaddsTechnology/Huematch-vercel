@@ -1,0 +1,30 @@
+# Essential packages for AI Fashion Backend - Docker optimized
+fastapi==0.116.1
+uvicorn==0.35.0
+python-multipart==0.0.12
+python-dotenv==1.0.1
+requests==2.32.3
+
+# Data processing essentials
+pandas==2.2.3
+numpy==1.26.4
+
+# Image processing - Essential only
+opencv-python-headless==4.10.0.84
+Pillow==10.4.0
+
+# Color processing
+webcolors==24.11.1
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+alembic==1.13.1
+
+# Machine Learning - Light versions
+scikit-learn==1.7.1
+
+# Other essentials
+click==8.1.8
+colorama==0.4.6
+rich==13.9.4

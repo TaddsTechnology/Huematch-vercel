@@ -207,12 +207,13 @@ class DataService:
         try:
             outfit_products = []
             
-            # Load outfit1 data
-            df_outfit1 = self.data_loader.load_csv_with_fallback(
-                primary_path=str(self.data_dir / "outfit_products_outfit1.csv"),
-                fallback_paths=["outfit_products_outfit1.csv"],
-                default_df=pd.DataFrame()
-            )
+        # Load outfit1 data (commented out - coming soon feature)
+        # df_outfit1 = self.data_loader.load_csv_with_fallback(
+        #     primary_path=str(self.data_dir / "outfit_products_outfit1.csv"),
+        #     fallback_paths=["outfit_products_outfit1.csv"],
+        #     default_df=pd.DataFrame()
+        # )
+        df_outfit1 = pd.DataFrame()  # Placeholder for coming soon feature
             
             if not df_outfit1.empty and 'products' in df_outfit1.columns:
                 try:

@@ -1,3 +1,7 @@
+// TODO: This data has been migrated to PostgreSQL database
+// Use API_ENDPOINTS.COLOR_PALETTES_DB for fetching color palette data
+// This file is kept for backward compatibility and reference
+
 export interface ColorPalette {
   skinTone: string;
   flatteringColors: {
