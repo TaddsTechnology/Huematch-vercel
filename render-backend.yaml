@@ -2,7 +2,7 @@ services:
 - type: web
   name: ai-fashion-backend
   env: docker
-  dockerfilePath: ./backend/Dockerfile
+  dockerfilePath: ./backend/Dockerfile.render
   dockerContext: ./backend
   plan: starter
   region: ohio
@@ -14,6 +14,8 @@ services:
   - key: PYTHONPATH
     value: /app
   - key: PYTHONUNBUFFERED
+    value: "1"
+  - key: PYTHONDONTWRITEBYTECODE
     value: "1"
   - key: ENV
     value: production

@@ -1859,7 +1859,11 @@ df_combined_outfits = load_data_file(
 
 @app.get("/")
 def home():
-    return {"message": "Welcome to the API!"}
+    return {"message": "Welcome to the AI Fashion API!", "status": "healthy"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "message": "AI Fashion Backend is running"}
 
 @app.get("/color-suggestions")
 def get_color_suggestions(skin_tone: str = Query(None)):
