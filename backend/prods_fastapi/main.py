@@ -1,6 +1,35 @@
-from fastapi import FastAPI, Query, HTTPException, File, UploadFile, Depends
+from fastapi import FastAPI, Query, HTTPException, File, UploadFile, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import asyncio
+import base64
+import uuid
+from contextlib import asynccontextmanager
+
+# Import our performance optimization modules
+from config import settings, FEATURE_FLAGS, get_environment_config
+from cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
+from async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
+from background_tasks import (
+    process_image_analysis_task, 
+    generate_color_recommendations_task,
+    generate_product_recommendations_task,
+    warm_cache_task,
+    cleanup_expired_cache_task,
+    get_task_result,
+    is_task_complete
+)
+from monitoring import (
+    performance_monitor, 
+    health_check_manager,
+    RequestMonitoringMiddleware,
+    get_health_endpoint,
+    get_metrics_endpoint,
+    get_system_stats_endpoint,
+    periodic_health_check,
+    cleanup_old_metrics
+)
 import pandas as pd
 import json
 import math
@@ -24,6 +53,9 @@ sys.path.append('..')
 from advanced_recommendation_engine import get_recommendation_engine
 from performance_optimizer import performance_optimizer, cached, skin_tone_cache
 from ab_testing_system import ab_testing_system, create_ab_test, get_ab_test_recommendations, track_ab_test_event, RecommendationAlgorithm
+# Get environment configuration
+env_config = get_environment_config()
+
 try:
     from database import get_database, ColorPalette, create_tables, init_color_palette_data
 except ImportError:
@@ -53,35 +85,91 @@ except ImportError:
         color_router = None
         COLOR_ROUTER_AVAILABLE = False
 
-app = FastAPI()
+# Lifespan context manager for startup/shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle"""
+    # Startup
+    try:
+        logger.info("Starting AI Fashion Backend with performance optimizations...")
+        
+        # Initialize database
+        if FEATURE_FLAGS["enable_async_db"]:
+            await async_create_tables()
+            await async_init_color_palette_data()
+            logger.info("Async database initialized")
+        
+        # Warm caches
+        if FEATURE_FLAGS["enable_caching"]:
+            warm_cache_skin_tones()
+            warm_cache_color_palettes()
+            await warm_async_caches()
+            logger.info("Caches warmed")
+        
+        # Start background tasks
+        if FEATURE_FLAGS["enable_background_processing"]:
+            # Warm cache task
+            warm_cache_task.send()
+            logger.info("Background tasks started")
+        
+        # Start monitoring tasks
+        if FEATURE_FLAGS["enable_health_checks"]:
+            asyncio.create_task(periodic_health_check())
+            asyncio.create_task(cleanup_old_metrics())
+            logger.info("Monitoring tasks started")
+        
+        logger.info(f"Application started successfully with {settings.max_workers} workers")
+        
+    except Exception as e:
+        logger.error(f"Failed to start application: {e}")
+        raise
+    
+    yield
+    
+    # Shutdown
+    try:
+        logger.info("Shutting down AI Fashion Backend...")
+        
+        # Close database connections
+        if FEATURE_FLAGS["enable_async_db"]:
+            await async_db_service.close()
+            logger.info("Database connections closed")
+        
+        logger.info("Application shut down successfully")
+        
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+# Create FastAPI app with optimized configuration
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    debug=env_config["debug"],
+    lifespan=lifespan
+)
+
+# Add performance middleware
+if FEATURE_FLAGS["enable_compression"]:
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+if FEATURE_FLAGS["enable_metrics"]:
+    # Add request monitoring middleware
+    monitoring_middleware = RequestMonitoringMiddleware()
+    app.middleware("http")(monitoring_middleware)
 
 # Include color router only if available
 if COLOR_ROUTER_AVAILABLE and color_router:
     app.include_router(color_router)
 
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database tables and data on startup"""
-    try:
-        create_tables()
-        init_color_palette_data()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+# Note: Startup/shutdown events now handled by lifespan context manager
 
-# Configure CORS for production deployment
+# Configure CORS with settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://*.render.com",  # Render domains
-        "http://localhost:3000",  # Local development
-        "http://localhost:5173",  # Vite dev server
-        "*"  # Allow all origins (remove for production if specific domains are known)
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_origins=settings.cors_origins,
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=settings.cors_allow_methods,
+    allow_headers=settings.cors_allow_headers,
 )
 
 # Path to the processed data directory
@@ -141,31 +229,46 @@ MONK_SKIN_TONES = {
 
 def apply_lighting_correction(image_array: np.ndarray) -> np.ndarray:
     """
-    Apply advanced lighting correction using CLAHE and LAB color space
+    Apply comprehensive lighting correction pipeline with CLAHE, white balance, 
+    gamma correction, and shadow/highlight balancing.
     """
     try:
-        # Convert to LAB color space for better lighting correction
-        lab_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
+        logger.info("Starting comprehensive lighting correction pipeline")
         
-        # Split LAB channels
+        # Step 1: Analyze image brightness and determine correction strategy
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+        mean_brightness = np.mean(gray)
+        std_brightness = np.std(gray)
+        
+        logger.info(f"Image analysis: mean_brightness={mean_brightness:.1f}, std_brightness={std_brightness:.1f}")
+        
+        # Step 2: Apply white balance correction first
+        white_balanced = apply_advanced_white_balance(image_array, mean_brightness)
+        
+        # Step 3: Convert to LAB color space for perceptual corrections
+        lab_image = cv2.cvtColor(white_balanced, cv2.COLOR_RGB2LAB)
         l_channel, a_channel, b_channel = cv2.split(lab_image)
         
-        # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) to L channel
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l_channel_corrected = clahe.apply(l_channel)
+        # Step 4: Apply adaptive CLAHE based on image characteristics
+        l_channel_corrected = apply_adaptive_clahe(l_channel, mean_brightness, std_brightness)
         
-        # Merge channels back
-        corrected_lab = cv2.merge([l_channel_corrected, a_channel, b_channel])
+        # Step 5: Apply shadow/highlight balancing
+        l_channel_balanced = apply_shadow_highlight_balancing(l_channel_corrected, mean_brightness)
         
-        # Convert back to RGB
+        # Step 6: Merge LAB channels back
+        corrected_lab = cv2.merge([l_channel_balanced, a_channel, b_channel])
+        
+        # Step 7: Convert back to RGB
         corrected_rgb = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB)
         
-        # Additional gamma correction for better exposure
-        gamma = 1.2  # Slightly brighten the image
-        corrected_rgb = np.power(corrected_rgb / 255.0, gamma) * 255.0
-        corrected_rgb = np.clip(corrected_rgb, 0, 255).astype(np.uint8)
+        # Step 8: Apply adaptive gamma correction
+        gamma_corrected = apply_adaptive_gamma_correction(corrected_rgb, mean_brightness)
         
-        return corrected_rgb
+        # Step 9: Final exposure and contrast adjustment
+        final_corrected = apply_exposure_adjustment(gamma_corrected, mean_brightness)
+        
+        logger.info("Lighting correction pipeline completed successfully")
+        return final_corrected
         
     except Exception as e:
         logger.warning(f"Lighting correction failed: {e}, using original image")
@@ -285,38 +388,272 @@ def apply_improved_white_balance(image_array: np.ndarray) -> np.ndarray:
         logger.warning(f"Improved white balance correction failed: {e}, using original image")
         return image_array
 
-def analyze_skin_tone_simple(image_array: np.ndarray) -> Dict:
+def apply_advanced_white_balance(image_array: np.ndarray, mean_brightness: float) -> np.ndarray:
     """
-    Highly refined skin tone analysis with special optimization for very light skin tones
+    Apply advanced white balance correction optimized based on image brightness
     """
     try:
-        # Step 1: Minimal processing for light skin tones to preserve true colors
-        processed_image = apply_minimal_processing(image_array)
+        # Convert to float for calculations
+        image_float = image_array.astype(np.float64)
         
-        # Step 2: Advanced multi-method skin color extraction
-        skin_colors = extract_skin_colors_advanced(processed_image)
+        # Adaptive masking based on brightness
+        if mean_brightness > 180:  # Very bright image - likely light skin
+            # Focus on mid-tones to avoid overexposure
+            mask = (image_float[:, :, 0] > 50) & (image_float[:, :, 0] < 240) & \
+                   (image_float[:, :, 1] > 50) & (image_float[:, :, 1] < 240) & \
+                   (image_float[:, :, 2] > 50) & (image_float[:, :, 2] < 240)
+            correction_strength = 0.5  # Gentle correction for bright images
+        elif mean_brightness < 100:  # Dark image
+            # Include more of the darker range
+            mask = (image_float[:, :, 0] > 10) & (image_float[:, :, 0] < 200) & \
+                   (image_float[:, :, 1] > 10) & (image_float[:, :, 1] < 200) & \
+                   (image_float[:, :, 2] > 10) & (image_float[:, :, 2] < 200)
+            correction_strength = 0.8  # Stronger correction for dark images
+        else:  # Medium brightness
+            # Standard masking
+            mask = (image_float[:, :, 0] > 30) & (image_float[:, :, 0] < 250) & \
+                   (image_float[:, :, 1] > 30) & (image_float[:, :, 1] < 250) & \
+                   (image_float[:, :, 2] > 30) & (image_float[:, :, 2] < 250)
+            correction_strength = 0.7  # Moderate correction
         
-        # Step 3: Intelligent color analysis with light skin bias
-        final_color = analyze_colors_with_light_bias(skin_colors, processed_image)
+        if np.sum(mask) > 0:
+            mean_r = np.mean(image_float[:, :, 0][mask])
+            mean_g = np.mean(image_float[:, :, 1][mask])
+            mean_b = np.mean(image_float[:, :, 2][mask])
+        else:
+            # Fallback to full image if mask is empty
+            mean_r = np.mean(image_float[:, :, 0])
+            mean_g = np.mean(image_float[:, :, 1])
+            mean_b = np.mean(image_float[:, :, 2])
         
-        # Step 4: Enhanced Monk tone matching with light skin priority
-        closest_monk = find_closest_monk_tone_enhanced(final_color)
+        # Calculate scaling factors with adaptive correction
+        gray_world_mean = (mean_r + mean_g + mean_b) / 3
         
-        # Step 5: Advanced confidence scoring
-        confidence = calculate_advanced_confidence(skin_colors, final_color)
+        if mean_r > 0:
+            factor_r = (gray_world_mean / mean_r - 1) * correction_strength + 1
+            image_float[:, :, 0] = image_float[:, :, 0] * factor_r
+        if mean_g > 0:
+            factor_g = (gray_world_mean / mean_g - 1) * correction_strength + 1
+            image_float[:, :, 1] = image_float[:, :, 1] * factor_g
+        if mean_b > 0:
+            factor_b = (gray_world_mean / mean_b - 1) * correction_strength + 1
+            image_float[:, :, 2] = image_float[:, :, 2] * factor_b
+        
+        # Clip values and convert back to uint8
+        balanced_image = np.clip(image_float, 0, 255).astype(np.uint8)
+        
+        logger.info(f"Applied adaptive white balance with strength {correction_strength:.1f}")
+        return balanced_image
+        
+    except Exception as e:
+        logger.warning(f"Advanced white balance correction failed: {e}, using original image")
+        return image_array
+
+def apply_adaptive_clahe(l_channel: np.ndarray, mean_brightness: float, std_brightness: float) -> np.ndarray:
+    """
+    Apply adaptive CLAHE based on image characteristics
+    """
+    try:
+        # Determine CLAHE parameters based on image characteristics
+        if mean_brightness > 200:  # Very bright image
+            clip_limit = 1.2  # Very gentle for bright images
+            tile_grid_size = (12, 12)  # Larger tiles for smoother correction
+        elif mean_brightness > 150:  # Moderately bright
+            clip_limit = 1.8
+            tile_grid_size = (10, 10)
+        elif mean_brightness > 100:  # Medium brightness
+            clip_limit = 2.5
+            tile_grid_size = (8, 8)
+        elif mean_brightness > 50:  # Dark image
+            clip_limit = 3.5
+            tile_grid_size = (6, 6)
+        else:  # Very dark image
+            clip_limit = 4.0  # Stronger correction for very dark images
+            tile_grid_size = (4, 4)  # Smaller tiles for more localized correction
+        
+        # Adjust based on contrast (standard deviation)
+        if std_brightness > 60:  # High contrast
+            clip_limit *= 0.7  # Reduce to avoid over-enhancement
+        elif std_brightness < 20:  # Low contrast
+            clip_limit *= 1.3  # Increase to enhance details
+        
+        # Create and apply CLAHE
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+        enhanced_l = clahe.apply(l_channel)
+        
+        logger.info(f"Applied adaptive CLAHE: clip_limit={clip_limit:.1f}, tile_size={tile_grid_size}")
+        return enhanced_l
+        
+    except Exception as e:
+        logger.warning(f"Adaptive CLAHE failed: {e}, using original L channel")
+        return l_channel
+
+def apply_shadow_highlight_balancing(l_channel: np.ndarray, mean_brightness: float) -> np.ndarray:
+    """
+    Apply shadow and highlight balancing to handle exposure extremes
+    """
+    try:
+        # Convert to float for calculations
+        l_float = l_channel.astype(np.float32) / 255.0
+        
+        # Define shadow and highlight thresholds
+        shadow_threshold = 0.3
+        highlight_threshold = 0.7
+        
+        # Adjust thresholds based on overall brightness
+        if mean_brightness > 180:  # Bright image
+            shadow_threshold = 0.2
+            highlight_threshold = 0.8
+            shadow_strength = 0.3  # Gentle shadow lifting
+            highlight_strength = 0.7  # Stronger highlight recovery
+        elif mean_brightness < 100:  # Dark image
+            shadow_threshold = 0.4
+            highlight_threshold = 0.6
+            shadow_strength = 0.8  # Strong shadow lifting
+            highlight_strength = 0.2  # Gentle highlight recovery
+        else:  # Medium brightness
+            shadow_strength = 0.5
+            highlight_strength = 0.5
+        
+        # Create masks for shadows and highlights
+        shadow_mask = l_float < shadow_threshold
+        highlight_mask = l_float > highlight_threshold
+        
+        # Apply shadow lifting
+        if np.any(shadow_mask):
+            shadow_factor = 1.0 + shadow_strength * (shadow_threshold - l_float[shadow_mask]) / shadow_threshold
+            l_float[shadow_mask] *= shadow_factor
+        
+        # Apply highlight recovery
+        if np.any(highlight_mask):
+            highlight_factor = 1.0 - highlight_strength * (l_float[highlight_mask] - highlight_threshold) / (1.0 - highlight_threshold)
+            l_float[highlight_mask] *= highlight_factor
+        
+        # Convert back to uint8
+        balanced_l = (np.clip(l_float, 0, 1) * 255).astype(np.uint8)
+        
+        logger.info(f"Applied shadow/highlight balancing: shadow_strength={shadow_strength:.1f}, highlight_strength={highlight_strength:.1f}")
+        return balanced_l
+        
+    except Exception as e:
+        logger.warning(f"Shadow/highlight balancing failed: {e}, using original L channel")
+        return l_channel
+
+def apply_adaptive_gamma_correction(image_array: np.ndarray, mean_brightness: float) -> np.ndarray:
+    """
+    Apply adaptive gamma correction based on image brightness
+    """
+    try:
+        # Determine gamma value based on brightness
+        if mean_brightness > 200:  # Very bright
+            gamma = 1.05  # Very subtle correction
+        elif mean_brightness > 150:  # Moderately bright
+            gamma = 1.1
+        elif mean_brightness > 100:  # Medium brightness
+            gamma = 1.2
+        elif mean_brightness > 50:  # Dark
+            gamma = 0.8  # Brighten dark images
+        else:  # Very dark
+            gamma = 0.7  # Strong brightening
+        
+        # Apply gamma correction
+        gamma_corrected = np.power(image_array / 255.0, gamma) * 255.0
+        gamma_corrected = np.clip(gamma_corrected, 0, 255).astype(np.uint8)
+        
+        logger.info(f"Applied adaptive gamma correction: gamma={gamma:.2f}")
+        return gamma_corrected
+        
+    except Exception as e:
+        logger.warning(f"Adaptive gamma correction failed: {e}, using original image")
+        return image_array
+
+def apply_exposure_adjustment(image_array: np.ndarray, mean_brightness: float) -> np.ndarray:
+    """
+    Apply final exposure and contrast adjustment for optimal output
+    """
+    try:
+        # Convert to float for calculations
+        image_float = image_array.astype(np.float32)
+        
+        # Determine exposure and contrast adjustments
+        if mean_brightness > 200:  # Very bright
+            exposure_adjustment = 0.95  # Slight darkening
+            contrast_factor = 0.98  # Slight contrast reduction
+        elif mean_brightness > 150:  # Moderately bright
+            exposure_adjustment = 0.98
+            contrast_factor = 1.0
+        elif mean_brightness > 100:  # Medium brightness
+            exposure_adjustment = 1.0
+            contrast_factor = 1.05  # Slight contrast boost
+        elif mean_brightness > 50:  # Dark
+            exposure_adjustment = 1.1  # Brightening
+            contrast_factor = 1.1  # Contrast boost
+        else:  # Very dark
+            exposure_adjustment = 1.2  # Strong brightening
+            contrast_factor = 1.15  # Strong contrast boost
+        
+        # Apply exposure adjustment
+        image_float *= exposure_adjustment
+        
+        # Apply contrast adjustment (around midpoint)
+        midpoint = 127.5
+        image_float = (image_float - midpoint) * contrast_factor + midpoint
+        
+        # Clip and convert back to uint8
+        adjusted_image = np.clip(image_float, 0, 255).astype(np.uint8)
+        
+        logger.info(f"Applied exposure adjustment: exposure={exposure_adjustment:.2f}, contrast={contrast_factor:.2f}")
+        return adjusted_image
+        
+    except Exception as e:
+        logger.warning(f"Exposure adjustment failed: {e}, using original image")
+        return image_array
+def analyze_skin_tone_lab(image_array: np.ndarray) -e Dict:
+    """
+    Enhanced skin tone analysis using LAB color space for better perceptual accuracy.
+    """
+    try:
+        # Convert image to LAB color space
+        lab_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
+        
+        # Extract L, A, B channels
+        l_channel, a_channel, b_channel = cv2.split(lab_image)
+        
+        # Analyze skin tone using the L channel, focusing on lightness
+        lightness_median = np.median(l_channel)
+        
+        # Check for brightness and adjust analysis as needed
+        if lightness_median c 50:
+            logger.info("Image appears dark; applying gentle lighting correction")
+            processed_image = apply_gentle_lighting_correction(image_array)
+            lab_image = cv2.cvtColor(processed_image, cv2.COLOR_RGB2LAB)
+            l_channel, a_channel, b_channel = cv2.split(lab_image)
+        
+        # Calculate median color in A and B channels for skin tone
+        median_a = np.median(a_channel)
+        median_b = np.median(b_channel)
+        final_color_lab = np.array([lightness_median, median_a, median_b])
+        
+        # Convert LAB to RGB to find closest Monk skin tone
+        final_color_rgb = cv2.cvtColor(np.uint8([[final_color_lab]]), cv2.COLOR_LAB2RGB)[0][0]
+        
+        # Enhanced Monk tone matching
+        closest_monk = find_closest_monk_tone_enhanced(final_color_rgb)
+        
+        # Advanced confidence scoring
+        confidence = calculate_advanced_confidence_lab(final_color_lab, lightness_median)
         
         return {
             'monk_skin_tone': closest_monk['monk_id'],
             'monk_tone_display': closest_monk['monk_name'],
             'monk_hex': closest_monk['monk_hex'],
             'derived_hex_code': closest_monk['derived_hex'],
-            'dominant_rgb': final_color.astype(int).tolist(),
+            'dominant_rgb': final_color_rgb.astype(int).tolist(),
             'confidence': confidence,
             'success': True
         }
-    
     except Exception as e:
-        logger.error(f"Error in skin tone analysis: {e}")
+        logger.error(f"Error in LAB skin tone analysis: {e}")
         return get_fallback_result()
 
 def apply_minimal_processing(image_array: np.ndarray) -> np.ndarray:
@@ -619,32 +956,450 @@ def calculate_light_skin_distance(color1: np.ndarray, color2: np.ndarray) -> flo
     
     return combined_distance
 
-def calculate_advanced_confidence(skin_colors: List[np.ndarray], final_color: np.ndarray) -> float:
+def calculate_comprehensive_confidence_score(image_array: np.ndarray, final_color_lab: np.ndarray, lightness: float) -> Dict:
     """
-    Advanced confidence calculation
+    Calculate comprehensive confidence score (0-100%) based on multiple quality factors:
+    - Color cluster coherence analysis
+    - Face detection quality score
+    - Lighting condition assessment
     """
-    base_confidence = 0.7
-    
-    # More skin color samples = higher confidence
-    sample_bonus = min(len(skin_colors) * 0.05, 0.2)
-    
-    # Light skin gets confidence boost (easier to detect)
-    if np.mean(final_color) > 200:
-        light_bonus = 0.1
-    else:
-        light_bonus = 0.0
-    
-    # Consistency bonus
-    if len(skin_colors) > 1:
-        colors_array = np.array(skin_colors)
-        consistency = 1.0 / (1.0 + np.var(colors_array))
-        consistency_bonus = consistency * 0.1
-    else:
-        consistency_bonus = 0.0
-    
-    total_confidence = base_confidence + sample_bonus + light_bonus + consistency_bonus
-    
-    return max(0.0, min(1.0, total_confidence))
+    try:
+        logger.info("Starting comprehensive confidence analysis")
+        
+        # Initialize scores
+        color_coherence_score = 0.0
+        face_detection_score = 0.0
+        lighting_quality_score = 0.0
+        
+        # 1. COLOR CLUSTER COHERENCE ANALYSIS (40% weight)
+        color_coherence_score = analyze_color_cluster_coherence(image_array)
+        logger.info(f"Color coherence score: {color_coherence_score:.2f}")
+        
+        # 2. FACE DETECTION QUALITY SCORE (35% weight)
+        face_detection_score = assess_face_detection_quality(image_array)
+        logger.info(f"Face detection quality score: {face_detection_score:.2f}")
+        
+        # 3. LIGHTING CONDITION ASSESSMENT (25% weight)
+        lighting_quality_score = evaluate_lighting_conditions(image_array)
+        logger.info(f"Lighting quality score: {lighting_quality_score:.2f}")
+        
+        # Calculate weighted final confidence (0-100%)
+        final_confidence = (
+            color_coherence_score * 0.40 +
+            face_detection_score * 0.35 +
+            lighting_quality_score * 0.25
+        )
+        
+        # Additional LAB color space consistency bonus
+        lab_consistency_bonus = calculate_lab_consistency_bonus(final_color_lab, lightness)
+        final_confidence = min(100.0, final_confidence + lab_consistency_bonus)
+        
+        logger.info(f"Final comprehensive confidence score: {final_confidence:.1f}%")
+        
+        return {
+            'overall_confidence': round(final_confidence, 1),
+            'color_coherence': round(color_coherence_score, 1),
+            'face_detection_quality': round(face_detection_score, 1),
+            'lighting_quality': round(lighting_quality_score, 1),
+            'lab_consistency_bonus': round(lab_consistency_bonus, 1)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in comprehensive confidence calculation: {e}")
+        return {
+            'overall_confidence': 50.0,
+            'color_coherence': 50.0,
+            'face_detection_quality': 50.0,
+            'lighting_quality': 50.0,
+            'lab_consistency_bonus': 0.0,
+            'error': str(e)
+        }
+
+def analyze_color_cluster_coherence(image_array: np.ndarray) -> float:
+    """
+    Analyze color cluster coherence to determine skin tone prediction reliability.
+    Returns score 0-100 where higher scores indicate more coherent skin tone regions.
+    """
+    try:
+        h, w = image_array.shape[:2]
+        
+        # Extract multiple face regions for coherence analysis
+        face_regions = [
+            image_array[h//6:h//3, w//3:2*w//3],      # Upper forehead
+            image_array[h//3:h//2, w//4:3*w//4],      # Mid-face (cheeks)
+            image_array[h//2:2*h//3, w//3:2*w//3],    # Lower face
+            image_array[2*h//5:3*h//5, 2*w//5:3*w//5] # Central nose area
+        ]
+        
+        region_colors = []
+        region_variances = []
+        
+        for region in face_regions:
+            if region.size > 100:  # Ensure region has enough pixels
+                # Convert to LAB for better color analysis
+                region_lab = cv2.cvtColor(region, cv2.COLOR_RGB2LAB)
+                
+                # Calculate mean color and variance for each channel
+                mean_color = np.mean(region_lab.reshape(-1, 3), axis=0)
+                color_variance = np.var(region_lab.reshape(-1, 3), axis=0)
+                
+                region_colors.append(mean_color)
+                region_variances.append(np.mean(color_variance))
+        
+        if len(region_colors) < 2:
+            return 30.0  # Low confidence if not enough regions
+        
+        # Calculate coherence between regions
+        region_colors = np.array(region_colors)
+        
+        # 1. Inter-region color consistency (how similar are the mean colors?)
+        color_distances = []
+        for i in range(len(region_colors)):
+            for j in range(i + 1, len(region_colors)):
+                distance = np.sqrt(np.sum((region_colors[i] - region_colors[j]) ** 2))
+                color_distances.append(distance)
+        
+        mean_color_distance = np.mean(color_distances) if color_distances else 50
+        
+        # Lower distance = higher coherence
+        inter_region_score = max(0, 100 - (mean_color_distance * 2))
+        
+        # 2. Intra-region color consistency (how uniform is each region?)
+        mean_variance = np.mean(region_variances) if region_variances else 500
+        intra_region_score = max(0, 100 - (mean_variance / 10))
+        
+        # 3. K-means clustering analysis for skin tone grouping
+        try:
+            from sklearn.cluster import KMeans
+            
+            # Sample pixels from all regions
+            all_pixels = []
+            for region in face_regions:
+                if region.size > 0:
+                    region_lab = cv2.cvtColor(region, cv2.COLOR_RGB2LAB)
+                    pixels = region_lab.reshape(-1, 3)
+                    # Sample up to 1000 pixels per region
+                    if len(pixels) > 1000:
+                        indices = np.random.choice(len(pixels), 1000, replace=False)
+                        pixels = pixels[indices]
+                    all_pixels.extend(pixels)
+            
+            if len(all_pixels) > 100:
+                all_pixels = np.array(all_pixels)
+                
+                # Perform K-means clustering with k=3 (skin, shadow, highlight)
+                kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+                cluster_labels = kmeans.fit_predict(all_pixels)
+                
+                # Calculate cluster coherence
+                cluster_sizes = np.bincount(cluster_labels)
+                dominant_cluster_ratio = np.max(cluster_sizes) / len(all_pixels)
+                
+                # Higher dominant cluster ratio = better coherence
+                clustering_score = dominant_cluster_ratio * 100
+            else:
+                clustering_score = 50
+                
+        except ImportError:
+            # Fallback if sklearn is not available
+            clustering_score = 60
+        except Exception as e:
+            logger.warning(f"K-means clustering failed: {e}")
+            clustering_score = 50
+        
+        # Combine all coherence measures
+        final_coherence_score = (
+            inter_region_score * 0.4 +
+            intra_region_score * 0.3 +
+            clustering_score * 0.3
+        )
+        
+        return min(100.0, max(0.0, final_coherence_score))
+        
+    except Exception as e:
+        logger.warning(f"Color coherence analysis failed: {e}")
+        return 40.0
+
+def assess_face_detection_quality(image_array: np.ndarray) -> float:
+    """
+    Assess the quality of face detection for skin tone analysis.
+    Returns score 0-100 based on face detection confidence and image quality.
+    """
+    try:
+        # Try to use MediaPipe for face detection if available
+        try:
+            import mediapipe as mp
+            
+            mp_face_detection = mp.solutions.face_detection
+            mp_drawing = mp.solutions.drawing_utils
+            
+            with mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5) as face_detection:
+                # Convert RGB to BGR for MediaPipe
+                image_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+                results = face_detection.process(image_bgr)
+                
+                if results.detections:
+                    # Get the most confident detection
+                    best_detection = max(results.detections, key=lambda x: x.score[0])
+                    detection_confidence = best_detection.score[0]
+                    
+                    # Analyze bounding box quality
+                    bbox = best_detection.location_data.relative_bounding_box
+                    
+                    # Calculate face area relative to image
+                    h, w = image_array.shape[:2]
+                    face_area_ratio = (bbox.width * bbox.height)
+                    
+                    # Ideal face area is 20-60% of image
+                    if 0.15 <= face_area_ratio <= 0.7:
+                        area_score = 100
+                    elif 0.1 <= face_area_ratio < 0.15 or 0.7 < face_area_ratio <= 0.8:
+                        area_score = 80
+                    else:
+                        area_score = 60
+                    
+                    # Check face centering
+                    face_center_x = bbox.xmin + bbox.width / 2
+                    face_center_y = bbox.ymin + bbox.height / 2
+                    
+                    # Penalty for faces too close to edges
+                    center_penalty = 0
+                    if face_center_x < 0.2 or face_center_x > 0.8:
+                        center_penalty += 10
+                    if face_center_y < 0.2 or face_center_y > 0.8:
+                        center_penalty += 10
+                    
+                    # Combine detection confidence, area, and centering
+                    face_quality_score = (
+                        detection_confidence * 100 * 0.5 +
+                        area_score * 0.3 +
+                        max(0, 100 - center_penalty) * 0.2
+                    )
+                    
+                    return min(100.0, face_quality_score)
+                else:
+                    # No face detected with MediaPipe
+                    return 20.0
+                    
+        except ImportError:
+            # Fallback to OpenCV Haar cascades if MediaPipe not available
+            logger.info("MediaPipe not available, using OpenCV face detection")
+            
+            # Try to load Haar cascade
+            try:
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+                
+                faces = face_cascade.detectMultiScale(
+                    gray,
+                    scaleFactor=1.1,
+                    minNeighbors=5,
+                    minSize=(50, 50)
+                )
+                
+                if len(faces) > 0:
+                    # Get the largest face
+                    largest_face = max(faces, key=lambda x: x[2] * x[3])
+                    x, y, w, h = largest_face
+                    
+                    # Calculate face quality metrics
+                    img_h, img_w = image_array.shape[:2]
+                    face_area_ratio = (w * h) / (img_w * img_h)
+                    
+                    # Basic quality assessment
+                    if 0.1 <= face_area_ratio <= 0.6:
+                        return 75.0
+                    elif 0.05 <= face_area_ratio < 0.1 or 0.6 < face_area_ratio <= 0.8:
+                        return 60.0
+                    else:
+                        return 45.0
+                else:
+                    return 25.0
+                    
+            except Exception as e:
+                logger.warning(f"OpenCV face detection failed: {e}")
+                return 35.0
+        
+        # Additional image quality checks
+        h, w = image_array.shape[:2]
+        
+        # Check image resolution
+        resolution_score = 100
+        if w < 200 or h < 200:
+            resolution_score = 40
+        elif w < 400 or h < 400:
+            resolution_score = 70
+        
+        # Check if image is too blurry (Laplacian variance)
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+        blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+        
+        if blur_score > 500:
+            sharpness_score = 100
+        elif blur_score > 200:
+            sharpness_score = 80
+        elif blur_score > 100:
+            sharpness_score = 60
+        else:
+            sharpness_score = 30
+        
+        # Combine all quality factors
+        return min(100.0, (resolution_score * 0.3 + sharpness_score * 0.7))
+        
+    except Exception as e:
+        logger.warning(f"Face detection quality assessment failed: {e}")
+        return 50.0
+
+def evaluate_lighting_conditions(image_array: np.ndarray) -> float:
+    """
+    Evaluate lighting conditions for optimal skin tone detection.
+    Returns score 0-100 where higher scores indicate better lighting.
+    """
+    try:
+        # Convert to grayscale for brightness analysis
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+        
+        # 1. Overall brightness assessment
+        mean_brightness = np.mean(gray)
+        brightness_score = 0
+        
+        if 80 <= mean_brightness <= 180:  # Optimal range
+            brightness_score = 100
+        elif 60 <= mean_brightness < 80 or 180 < mean_brightness <= 200:
+            brightness_score = 80
+        elif 40 <= mean_brightness < 60 or 200 < mean_brightness <= 220:
+            brightness_score = 60
+        else:
+            brightness_score = 30
+        
+        # 2. Contrast and detail preservation
+        contrast_score = np.std(gray)
+        if 30 <= contrast_score <= 70:  # Good contrast
+            contrast_quality = 100
+        elif 20 <= contrast_score < 30 or 70 < contrast_score <= 90:
+            contrast_quality = 80
+        elif 10 <= contrast_score < 20 or 90 < contrast_score <= 110:
+            contrast_quality = 60
+        else:
+            contrast_quality = 40
+        
+        # 3. Check for overexposure/underexposure
+        overexposed_pixels = np.sum(gray > 240) / gray.size
+        underexposed_pixels = np.sum(gray < 15) / gray.size
+        
+        exposure_penalty = 0
+        if overexposed_pixels > 0.1:  # More than 10% overexposed
+            exposure_penalty += min(30, overexposed_pixels * 200)
+        if underexposed_pixels > 0.1:  # More than 10% underexposed
+            exposure_penalty += min(30, underexposed_pixels * 200)
+        
+        exposure_score = max(0, 100 - exposure_penalty)
+        
+        # 4. Color temperature assessment (check for color casts)
+        # Analyze RGB channel balance
+        mean_r = np.mean(image_array[:, :, 0])
+        mean_g = np.mean(image_array[:, :, 1])
+        mean_b = np.mean(image_array[:, :, 2])
+        
+        # Calculate color balance score
+        max_channel = max(mean_r, mean_g, mean_b)
+        min_channel = min(mean_r, mean_g, mean_b)
+        
+        if max_channel > 0:
+            color_balance_ratio = min_channel / max_channel
+            if color_balance_ratio > 0.8:  # Well balanced
+                color_balance_score = 100
+            elif color_balance_ratio > 0.6:
+                color_balance_score = 80
+            elif color_balance_ratio > 0.4:
+                color_balance_score = 60
+            else:
+                color_balance_score = 40
+        else:
+            color_balance_score = 50
+        
+        # 5. Shadow/highlight distribution analysis
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        hist_normalized = hist.flatten() / np.sum(hist)
+        
+        # Check for good tonal distribution
+        shadows = np.sum(hist_normalized[:64])      # 0-25% range
+        midtones = np.sum(hist_normalized[64:192])  # 25-75% range
+        highlights = np.sum(hist_normalized[192:])   # 75-100% range
+        
+        # Ideal distribution has strong midtones with moderate shadows/highlights
+        if midtones > 0.4 and shadows < 0.4 and highlights < 0.4:
+            distribution_score = 100
+        elif midtones > 0.3:
+            distribution_score = 80
+        else:
+            distribution_score = 60
+        
+        # Combine all lighting quality factors
+        final_lighting_score = (
+            brightness_score * 0.25 +
+            contrast_quality * 0.20 +
+            exposure_score * 0.25 +
+            color_balance_score * 0.15 +
+            distribution_score * 0.15
+        )
+        
+        return min(100.0, max(0.0, final_lighting_score))
+        
+    except Exception as e:
+        logger.warning(f"Lighting condition evaluation failed: {e}")
+        return 50.0
+
+def calculate_lab_consistency_bonus(final_color_lab: np.ndarray, lightness: float) -> float:
+    """
+    Calculate bonus points based on LAB color space consistency.
+    Returns bonus score 0-15 points.
+    """
+    try:
+        # Analyze LAB channel relationships
+        l_val, a_val, b_val = final_color_lab
+        
+        # Check if the color values are within expected skin tone ranges
+        bonus = 0
+        
+        # L channel should be reasonable for skin tones (20-95)
+        if 20 <= l_val <= 95:
+            bonus += 5
+        
+        # A channel for skin tones typically ranges from -10 to +25
+        if -10 <= a_val <= 25:
+            bonus += 5
+        
+        # B channel for skin tones typically ranges from -5 to +35
+        if -5 <= b_val <= 35:
+            bonus += 5
+        
+        return bonus
+        
+    except Exception as e:
+        logger.warning(f"LAB consistency bonus calculation failed: {e}")
+        return 0
+
+def calculate_advanced_confidence_lab(final_color_lab: np.ndarray, lightness: float) -> float:
+    """
+    Legacy function maintained for backward compatibility.
+    Now calls the comprehensive confidence system.
+    """
+    try:
+        # Create a dummy image array for the comprehensive system
+        # This is a fallback when only LAB data is available
+        dummy_image = np.ones((100, 100, 3), dtype=np.uint8) * 128
+        
+        comprehensive_result = calculate_comprehensive_confidence_score(
+            dummy_image, final_color_lab, lightness
+        )
+        
+        # Return confidence as decimal (0-1) for backward compatibility
+        return comprehensive_result['overall_confidence'] / 100.0
+        
+    except Exception as e:
+        logger.warning(f"Error in legacy confidence calculation: {e}")
+        return 0.5
         
         
     return {
@@ -2167,8 +2922,8 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
         # Convert to numpy array
         image_array = np.array(image)
         
-        # Analyze skin tone
-        result = analyze_skin_tone_simple(image_array)
+        # Analyze skin tone using LAB color space for better accuracy
+        result = analyze_skin_tone_lab(image_array)
         
         logger.info(f"Skin tone analysis result: {result}")
         return result
@@ -2179,14 +2934,30 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
         logger.error(f"Error in analyze_skin_tone endpoint: {e}")
         return get_fallback_result()
 
+# Health and monitoring endpoints
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Basic health check endpoint"""
     return {
         "status": "healthy",
         "message": "Skin tone analysis API is running",
         "available_tones": list(MONK_SKIN_TONES.keys())
     }
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """Detailed health check with system information"""
+    return await get_health_endpoint()
+
+@app.get("/metrics")
+async def get_system_metrics():
+    """Get Prometheus-style application metrics"""
+    return await get_metrics_endpoint()
+
+@app.get("/stats")
+async def get_system_stats():
+    """Get detailed system statistics"""
+    return await get_system_stats_endpoint()
 
 # Advanced Recommendation Endpoints
 @app.post("/api/advanced-recommendations")
