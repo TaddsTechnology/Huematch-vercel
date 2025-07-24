@@ -608,7 +608,7 @@ def apply_exposure_adjustment(image_array: np.ndarray, mean_brightness: float) -
     except Exception as e:
         logger.warning(f"Exposure adjustment failed: {e}, using original image")
         return image_array
-def analyze_skin_tone_lab(image_array: np.ndarray) -e Dict:
+def analyze_skin_tone_lab(image_array: np.ndarray) -> Dict:
     """
     Enhanced skin tone analysis using LAB color space for better perceptual accuracy.
     """
@@ -623,7 +623,7 @@ def analyze_skin_tone_lab(image_array: np.ndarray) -e Dict:
         lightness_median = np.median(l_channel)
         
         # Check for brightness and adjust analysis as needed
-        if lightness_median c 50:
+        if lightness_median < 50:
             logger.info("Image appears dark; applying gentle lighting correction")
             processed_image = apply_gentle_lighting_correction(image_array)
             lab_image = cv2.cvtColor(processed_image, cv2.COLOR_RGB2LAB)
