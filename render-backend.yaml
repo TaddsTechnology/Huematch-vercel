@@ -9,7 +9,7 @@ services:
   branch: main
   buildCommand: ""
   startCommand: ""
-  healthCheckPath: /
+  healthCheckPath: /health
   envVars:
   - key: PYTHONPATH
     value: /app

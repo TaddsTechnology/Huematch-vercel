@@ -43,8 +43,11 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || curl -f http://localhost:8000/ || exit 1
 
-# Make startup script executable and use it
+# Make startup script executable
 RUN chmod +x /app/start_app.py
+
+# Create a simple entrypoint script as fallback
+RUN echo '#!/bin/bash\nexec python /app/start_app.py' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Command to run the application using startup script with fallback
 CMD ["python", "/app/start_app.py"]
