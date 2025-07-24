@@ -38,4 +38,4 @@ RUN npm install -g serve
 
 # Command to run the application
 # Use PORT environment variable for Render compatibility
-CMD serve -s dist -l ${PORT:-3000}
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000} -n"]

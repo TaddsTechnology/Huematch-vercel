@@ -33,9 +33,11 @@ RUN mkdir -p processed_data prods_fastapi/data
 # Expose port 8000
 EXPOSE 8000
 
-# Copy entrypoint script
-COPY entrypoint.sh /app/
-RUN chmod +x /app/entrypoint.sh
+# Copy entrypoint script and set permissions
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh && \
+    # Convert Windows line endings to Unix
+    sed -i 's/\r$//' /app/entrypoint.sh
 
 # Set environment variables
 ENV PYTHONPATH=/app:/app/prods_fastapi

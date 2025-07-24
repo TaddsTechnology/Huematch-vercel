@@ -527,6 +527,49 @@ def apply_advanced_white_balance(image_array: np.ndarray, mean_brightness: float
         logger.warning(f"Advanced white balance correction failed: {e}, using original image")
         return image_array
 
+def apply_clahe_correction(image_array: np.ndarray) -> np.ndarray:
+    """
+    Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) for optimal lighting correction
+    This is the Phase 1 implementation as specified in phase1.md
+    """
+    try:
+        # Convert RGB to LAB color space for better perceptual accuracy
+        lab_image = cv2.cvtColor(image_array, cv2.COLOR_RGB2LAB)
+        l_channel, a_channel, b_channel = cv2.split(lab_image)
+        
+        # Calculate image statistics for adaptive processing
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+        mean_brightness = np.mean(gray)
+        std_brightness = np.std(gray)
+        
+        logger.info(f"CLAHE processing - Mean brightness: {mean_brightness:.1f}, Std: {std_brightness:.1f}")
+        
+        # Apply adaptive CLAHE to L channel
+        enhanced_l = apply_adaptive_clahe(l_channel, mean_brightness, std_brightness)
+        
+        # Apply shadow/highlight balancing
+        balanced_l = apply_shadow_highlight_balancing(enhanced_l, mean_brightness)
+        
+        # Recombine LAB channels
+        enhanced_lab = cv2.merge([balanced_l, a_channel, b_channel])
+        
+        # Convert back to RGB
+        enhanced_rgb = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2RGB)
+        
+        # Ensure values are in valid range
+        enhanced_rgb = np.clip(enhanced_rgb, 0, 255).astype(np.uint8)
+        
+        # Log the improvement
+        final_gray = cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2GRAY)
+        final_brightness = np.mean(final_gray)
+        logger.info(f"CLAHE correction completed - Final brightness: {final_brightness:.1f} (improvement: +{final_brightness - mean_brightness:.1f})")
+        
+        return enhanced_rgb
+        
+    except Exception as e:
+        logger.warning(f"CLAHE correction failed: {e}, using original image")
+        return image_array
+
 def apply_adaptive_clahe(l_channel: np.ndarray, mean_brightness: float, std_brightness: float) -> np.ndarray:
     """
     Apply adaptive CLAHE based on image characteristics
@@ -569,6 +612,7 @@ def apply_adaptive_clahe(l_channel: np.ndarray, mean_brightness: float, std_brig
 def apply_shadow_highlight_balancing(l_channel: np.ndarray, mean_brightness: float) -> np.ndarray:
     """
     Apply shadow and highlight balancing to handle exposure extremes
+    This is part of the Phase 1 CLAHE implementation as specified in phase1.md
     """
     try:
         # Convert to float for calculations
@@ -616,6 +660,7 @@ def apply_shadow_highlight_balancing(l_channel: np.ndarray, mean_brightness: flo
     except Exception as e:
         logger.warning(f"Shadow/highlight balancing failed: {e}, using original L channel")
         return l_channel
+
 
 def apply_adaptive_gamma_correction(image_array: np.ndarray, mean_brightness: float) -> np.ndarray:
     """

@@ -36,6 +36,7 @@ pandas==2.2.3
 protobuf==4.25.8
 pydantic==2.10.6
 pydantic_core==2.27.2
+pydantic-settings==2.6.1
 Pygments==2.19.1
 PySocks==1.7.1
 python-dotenv==1.0.1
@@ -67,3 +68,4 @@ psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
 alembic==1.13.1
 redis==5.0.1
+aioredis==2.0.1
