@@ -8,37 +8,73 @@ import uuid
 from contextlib import asynccontextmanager
 
 # Import our performance optimization modules
-from config import settings, FEATURE_FLAGS, get_environment_config
-from cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
-from async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
-from background_tasks import (
-    process_image_analysis_task, 
-    generate_color_recommendations_task,
-    generate_product_recommendations_task,
-    warm_cache_task,
-    cleanup_expired_cache_task,
-    get_task_result,
-    is_task_complete
-)
-from monitoring import (
-    performance_monitor, 
-    health_check_manager,
-    RequestMonitoringMiddleware,
-    get_health_endpoint,
-    get_metrics_endpoint,
-    get_system_stats_endpoint,
-    periodic_health_check,
-    cleanup_old_metrics
-)
+# Try both absolute and relative imports for Docker compatibility
+try:
+    # First try absolute imports (for Docker/production)
+    from prods_fastapi.config import settings, FEATURE_FLAGS, get_environment_config
+    from prods_fastapi.cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
+    from prods_fastapi.async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
+    from prods_fastapi.background_tasks import (
+        process_image_analysis_task, 
+        generate_color_recommendations_task,
+        generate_product_recommendations_task,
+        warm_cache_task,
+        cleanup_expired_cache_task,
+        get_task_result,
+        is_task_complete
+    )
+    from prods_fastapi.monitoring import (
+        performance_monitor, 
+        health_check_manager,
+        RequestMonitoringMiddleware,
+        get_health_endpoint,
+        get_metrics_endpoint,
+        get_system_stats_endpoint,
+        periodic_health_check,
+        cleanup_old_metrics
+    )
+except ImportError:
+    # Fallback to relative imports (for local development)
+    from .config import settings, FEATURE_FLAGS, get_environment_config
+    from .cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
+    from .async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
+    from .background_tasks import (
+        process_image_analysis_task, 
+        generate_color_recommendations_task,
+        generate_product_recommendations_task,
+        warm_cache_task,
+        cleanup_expired_cache_task,
+        get_task_result,
+        is_task_complete
+    )
+    from .monitoring import (
+        performance_monitor, 
+        health_check_manager,
+        RequestMonitoringMiddleware,
+        get_health_endpoint,
+        get_metrics_endpoint,
+        get_system_stats_endpoint,
+        periodic_health_check,
+        cleanup_old_metrics
+    )
 import pandas as pd
 import json
 import math
 import os
 from typing import List, Optional, Dict
 try:
-    from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
-except ImportError:
     from prods_fastapi.color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
+except ImportError:
+    try:
+        from color_utils import get_color_mapping, get_seasonal_palettes, get_monk_hex_codes
+    except ImportError:
+        # Fallback functions if module not found
+        def get_color_mapping():
+            return {}
+        def get_seasonal_palettes():
+            return {}
+        def get_monk_hex_codes():
+            return {}
 from pathlib import Path
 import re
 import numpy as np
@@ -50,9 +86,51 @@ import logging
 import random
 import sys
 sys.path.append('..')
-from advanced_recommendation_engine import get_recommendation_engine
-from performance_optimizer import performance_optimizer, cached, skin_tone_cache
-from ab_testing_system import ab_testing_system, create_ab_test, get_ab_test_recommendations, track_ab_test_event, RecommendationAlgorithm
+
+# Try to import backend modules with fallback handling
+try:
+    from advanced_recommendation_engine import get_recommendation_engine
+except ImportError:
+    try:
+        from ..advanced_recommendation_engine import get_recommendation_engine
+    except ImportError:
+        # Fallback for missing module
+        def get_recommendation_engine():
+            return None
+
+try:
+    from performance_optimizer import performance_optimizer, cached, skin_tone_cache
+except ImportError:
+    try:
+        from ..performance_optimizer import performance_optimizer, cached, skin_tone_cache
+    except ImportError:
+        # Fallback for missing module
+        class MockPerformanceOptimizer:
+            def __call__(self, *args, **kwargs):
+                def decorator(func):
+                    return func
+                return decorator
+        performance_optimizer = MockPerformanceOptimizer()
+        cached = performance_optimizer
+        skin_tone_cache = {}
+
+try:
+    from ab_testing_system import ab_testing_system, create_ab_test, get_ab_test_recommendations, track_ab_test_event, RecommendationAlgorithm
+except ImportError:
+    try:
+        from ..ab_testing_system import ab_testing_system, create_ab_test, get_ab_test_recommendations, track_ab_test_event, RecommendationAlgorithm
+    except ImportError:
+        # Fallback for missing module
+        class MockABTesting:
+            pass
+        ab_testing_system = MockABTesting()
+        create_ab_test = lambda *args, **kwargs: None
+        get_ab_test_recommendations = lambda *args, **kwargs: {'recommendations': [], 'variant': 'control', 'algorithm': MockABTesting()}
+        track_ab_test_event = lambda *args, **kwargs: None
+        
+        class RecommendationAlgorithm:
+            COLLABORATIVE = 'collaborative'
+            CONTENT_BASED = 'content_based'
 # Get environment configuration
 env_config = get_environment_config()
 

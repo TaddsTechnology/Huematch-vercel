@@ -4,7 +4,10 @@ Configuration Settings for AI Fashion Backend Performance Optimization
 
 import os
 from typing import Dict, Any, List
-from pydantic import BaseSettings
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""

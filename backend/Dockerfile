@@ -33,14 +33,17 @@ RUN mkdir -p processed_data prods_fastapi/data
 # Expose port 8000
 EXPOSE 8000
 
+# Copy entrypoint script
+COPY entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
+
 # Set environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/prods_fastapi
 ENV PYTHONUNBUFFERED=1
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/ || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Command to run the application
-# Use PORT environment variable for Render compatibility
-CMD python -m uvicorn prods_fastapi.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
