@@ -11,15 +11,26 @@ import logging
 from typing import Any, Optional, Dict, List
 from functools import wraps
 import asyncio
-import aioredis
 from datetime import timedelta
 import os
 
+# Import aioredis directly
+try:
+    import aioredis
+except ImportError:
+    aioredis = None
+
 logger = logging.getLogger(__name__)
 
-# Redis configuration
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-REDIS_MAX_CONNECTIONS = int(os.getenv("REDIS_MAX_CONNECTIONS", "10"))
+# Import configuration
+try:
+    from config import settings
+    REDIS_URL = settings.redis_url
+    REDIS_MAX_CONNECTIONS = settings.redis_max_connections
+except ImportError:
+    # Fallback if config is not available
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_MAX_CONNECTIONS = int(os.getenv("REDIS_MAX_CONNECTIONS", "10"))
 
 class CacheManager:
     """Redis-based cache manager with async support"""
@@ -30,28 +41,41 @@ class CacheManager:
         self._initialize_redis()
     
     def _initialize_redis(self):
-        """Initialize Redis connections"""
+        """Initialize Redis connections with fallback"""
         try:
-            # Synchronous Redis client
-            self.redis_client = redis.from_url(
-                REDIS_URL,
-                max_connections=REDIS_MAX_CONNECTIONS,
-                decode_responses=False,
-                socket_timeout=5,
-                socket_connect_timeout=5,
-                retry_on_timeout=True
-            )
+            # Synchronous Redis client with SSL support
+            connection_kwargs = {
+                "max_connections": REDIS_MAX_CONNECTIONS,
+                "decode_responses": False,
+                "socket_timeout": 5,
+                "socket_connect_timeout": 5,
+                "retry_on_timeout": True
+            }
+            
+            # Add SSL configuration if using rediss://
+            if REDIS_URL.startswith("rediss://"):
+                connection_kwargs["ssl"] = True
+                connection_kwargs["ssl_cert_reqs"] = None
+            
+            self.redis_client = redis.from_url(REDIS_URL, **connection_kwargs)
             
             # Test connection
             self.redis_client.ping()
             logger.info("Redis connection established successfully")
             
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.warning(f"Redis connection failed: {e}. Running without cache.")
             self.redis_client = None
+            # Initialize in-memory fallback cache
+            self._memory_cache = {}
+            self._memory_cache_expiry = {}
     
     async def get_async_redis(self):
         """Get async Redis connection"""
+        if not aioredis:
+            logger.warning("aioredis not available, async operations will be skipped")
+            return None
+            
         if self.async_redis is None:
             try:
                 self.async_redis = await aioredis.from_url(
@@ -250,16 +274,13 @@ image_processing_cache = lambda func: cached(expire_seconds=7200, key_prefix="im
 # Cache warming functions
 def warm_cache_skin_tones():
     """Pre-populate cache with common skin tone mappings"""
-    from color_utils import get_monk_hex_codes, monk_to_seasonal
-    
     try:
+        from color_utils import get_monk_hex_codes
+        
         monk_codes = get_monk_hex_codes()
         for monk_id, hex_codes in monk_codes.items():
             cache_key = f"cache:monk_hex:{monk_id}"
             cache_manager.set(cache_key, hex_codes, expire_seconds=86400)  # 24 hours
-        
-        cache_key = "cache:monk_to_seasonal"
-        cache_manager.set(cache_key, monk_to_seasonal, expire_seconds=86400)
         
         logger.info("Cache warmed with skin tone data")
     except Exception as e:

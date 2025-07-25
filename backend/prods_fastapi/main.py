@@ -8,55 +8,29 @@ import uuid
 from contextlib import asynccontextmanager
 
 # Import our performance optimization modules
-# Try both absolute and relative imports for Docker compatibility
-try:
-    # First try absolute imports (for Docker/production)
-    from prods_fastapi.config import settings, FEATURE_FLAGS, get_environment_config
-    from prods_fastapi.cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
-    from prods_fastapi.async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
-    from prods_fastapi.background_tasks import (
-        process_image_analysis_task, 
-        generate_color_recommendations_task,
-        generate_product_recommendations_task,
-        warm_cache_task,
-        cleanup_expired_cache_task,
-        get_task_result,
-        is_task_complete
-    )
-    from prods_fastapi.monitoring import (
-        performance_monitor, 
-        health_check_manager,
-        RequestMonitoringMiddleware,
-        get_health_endpoint,
-        get_metrics_endpoint,
-        get_system_stats_endpoint,
-        periodic_health_check,
-        cleanup_old_metrics
-    )
-except ImportError:
-    # Fallback to relative imports (for local development)
-    from .config import settings, FEATURE_FLAGS, get_environment_config
-    from .cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
-    from .async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
-    from .background_tasks import (
-        process_image_analysis_task, 
-        generate_color_recommendations_task,
-        generate_product_recommendations_task,
-        warm_cache_task,
-        cleanup_expired_cache_task,
-        get_task_result,
-        is_task_complete
-    )
-    from .monitoring import (
-        performance_monitor, 
-        health_check_manager,
-        RequestMonitoringMiddleware,
-        get_health_endpoint,
-        get_metrics_endpoint,
-        get_system_stats_endpoint,
-        periodic_health_check,
-        cleanup_old_metrics
-    )
+# Use direct imports that work in Docker environment
+from config import settings, FEATURE_FLAGS, get_environment_config
+from cache_manager import cache_manager, cached, skin_tone_cache, warm_cache_skin_tones, warm_cache_color_palettes
+from async_database import async_db_service, get_async_db, async_create_tables, async_init_color_palette_data, warm_async_caches
+from background_tasks import (
+    process_image_analysis_task, 
+    generate_color_recommendations_task,
+    generate_product_recommendations_task,
+    warm_cache_task,
+    cleanup_expired_cache_task,
+    get_task_result,
+    is_task_complete
+)
+from monitoring import (
+    performance_monitor, 
+    health_check_manager,
+    RequestMonitoringMiddleware,
+    get_health_endpoint,
+    get_metrics_endpoint,
+    get_system_stats_endpoint,
+    periodic_health_check,
+    cleanup_old_metrics
+)
 import pandas as pd
 import json
 import math
@@ -138,6 +112,14 @@ try:
     from database import get_database, ColorPalette, create_tables, init_color_palette_data
 except ImportError:
     from prods_fastapi.database import get_database, ColorPalette, create_tables, init_color_palette_data
+
+# Import Session for database operations
+try:
+    from sqlalchemy.orm import Session
+except ImportError:
+    # Fallback if SQLAlchemy is not available
+    class Session:
+        pass
     
 # Import the new color service - commented out as color_service.py doesn't exist
 # try:

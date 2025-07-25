@@ -4,6 +4,8 @@ Handles CPU-intensive operations like image processing, color analysis, and reco
 """
 
 import dramatiq
+from dramatiq.brokers.redis import RedisBroker
+from dramatiq.brokers.stub import StubBroker
 import logging
 import numpy as np
 import cv2
@@ -12,13 +14,53 @@ import io
 import base64
 from typing import Dict, Any, List, Optional
 import json
-from cache_manager import cache_manager
+from cache_manager import cache_manager, cached
 
 logger = logging.getLogger(__name__)
 
-# Configure Dramatiq with Redis broker
-redis_broker = dramatiq.brokers.redis.RedisBroker(host="localhost", port=6379, db=1)
-dramatiq.set_broker(redis_broker)
+# Configure Dramatiq with Redis broker (using environment variable)
+import os
+try:
+    redis_url = os.getenv("DRAMATIQ_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/1"))
+    if redis_url.startswith(("redis://", "rediss://")):
+        # Parse Redis URL for dramatiq
+        import urllib.parse
+        parsed = urllib.parse.urlparse(redis_url)
+        redis_host = parsed.hostname or "localhost"
+        redis_port = parsed.port or 6379
+        redis_password = parsed.password  # Extract password
+        # Use DB 1 for background tasks, or extract from URL
+        redis_db = int(parsed.path.lstrip('/')) if parsed.path and parsed.path != '/' else 1
+        
+        # Configure broker with authentication if password is present
+        # Check if SSL is needed (rediss:// protocol)
+        use_ssl = redis_url.startswith("rediss://")
+        
+        if redis_password:
+            if use_ssl:
+                redis_broker = RedisBroker(host=redis_host, port=redis_port, db=redis_db, password=redis_password, connection_kwargs={"ssl": True, "ssl_cert_reqs": None})
+                logger.info(f"Dramatiq broker configured with Redis at {redis_host}:{redis_port} (with auth + SSL)")
+            else:
+                redis_broker = RedisBroker(host=redis_host, port=redis_port, db=redis_db, password=redis_password)
+                logger.info(f"Dramatiq broker configured with Redis at {redis_host}:{redis_port} (with auth)")
+        else:
+            if use_ssl:
+                redis_broker = RedisBroker(host=redis_host, port=redis_port, db=redis_db, connection_kwargs={"ssl": True, "ssl_cert_reqs": None})
+                logger.info(f"Dramatiq broker configured with Redis at {redis_host}:{redis_port} (SSL only)")
+            else:
+                redis_broker = RedisBroker(host=redis_host, port=redis_port, db=redis_db)
+                logger.info(f"Dramatiq broker configured with Redis at {redis_host}:{redis_port} (no auth)")
+            
+        dramatiq.set_broker(redis_broker)
+    else:
+        logger.warning("Invalid REDIS_URL format, using localhost fallback")
+        redis_broker = RedisBroker(host="localhost", port=6379, db=1)
+        dramatiq.set_broker(redis_broker)
+except Exception as e:
+    logger.error(f"Failed to configure Redis broker: {e}")
+    # Use stub broker as fallback
+    redis_broker = StubBroker()
+    dramatiq.set_broker(redis_broker)
 
 @dramatiq.actor(max_retries=3, min_backoff=1000, max_backoff=10000)
 def process_image_analysis_task(image_data_b64: str, analysis_id: str) -> Dict[str, Any]:

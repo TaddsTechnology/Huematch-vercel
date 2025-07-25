@@ -27,12 +27,12 @@ class Settings(BaseSettings):
     db_echo: bool = False
     
     # Redis/Cache settings
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     redis_max_connections: int = 10
     cache_default_ttl: int = 3600
     
     # Background task settings
-    dramatiq_broker_url: str = "redis://localhost:6379/1"
+    dramatiq_broker_url: str = os.getenv("DRAMATIQ_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/1"))
     max_background_tasks: int = 10
     task_timeout: int = 300
     
@@ -319,11 +319,11 @@ def validate_config():
         errors.append("Cache TTL should be at least 60 seconds")
     
     # Validate URLs
-    if not settings.database_url.startswith(("postgresql://", "sqlite:///")):
+    if not settings.database_url.startswith(("postgresql://", "postgresql+asyncpg://", "sqlite:///")):
         errors.append("Database URL must be PostgreSQL or SQLite")
     
-    if not settings.redis_url.startswith("redis://"):
-        errors.append("Redis URL must start with redis://")
+    if not settings.redis_url.startswith(("redis://", "rediss://")):
+        errors.append("Redis URL must start with redis:// or rediss://")
     
     if errors:
         raise ValueError(f"Configuration errors: {'; '.join(errors)}")

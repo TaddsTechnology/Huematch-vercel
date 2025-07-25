@@ -21,37 +21,70 @@ DATABASE_URL = os.getenv(
     "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
 )
 
+# Log the database URL being used (without sensitive info)
+logger.info(f"Using database URL: {DATABASE_URL.split('@')[0] + '@***'}")
+
 # Convert to async URL
 ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-# Create async engine with connection pooling
-async_engine = create_async_engine(
-    ASYNC_DATABASE_URL,
-    echo=False,
-    future=True,
-    pool_size=20,
-    max_overflow=30,
-    pool_timeout=30,
-    pool_recycle=3600,
-    pool_pre_ping=True
-)
+# Global variables for lazy initialization
+async_engine = None
+AsyncSessionLocal = None
 
-# Create async session factory
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
+def _initialize_async_engine():
+    """Lazy initialization of async database engine"""
+    global async_engine, AsyncSessionLocal
+    
+    if async_engine is None:
+        try:
+            # Create async engine with connection pooling
+            async_engine = create_async_engine(
+                ASYNC_DATABASE_URL,
+                echo=False,
+                future=True,
+                pool_size=20,
+                max_overflow=30,
+                pool_timeout=30,
+                pool_recycle=3600,
+                pool_pre_ping=True
+            )
+            
+            # Create async session factory
+            AsyncSessionLocal = async_sessionmaker(
+                bind=async_engine,
+                class_=AsyncSession,
+                expire_on_commit=False
+            )
+            
+            logger.info("Async database engine initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize async database engine: {e}")
+            # Set dummy values to prevent repeated initialization attempts
+            async_engine = "unavailable"
+            AsyncSessionLocal = None
+    
+    return async_engine, AsyncSessionLocal
 
 class AsyncDatabaseService:
     """Async database service with caching and connection pooling"""
     
     def __init__(self):
-        self.engine = async_engine
-        self.session_factory = AsyncSessionLocal
+        self.engine = None
+        self.session_factory = None
+        self._initialized = False
+    
+    def _ensure_initialized(self):
+        """Ensure database engine is initialized"""
+        if not self._initialized:
+            self.engine, self.session_factory = _initialize_async_engine()
+            self._initialized = True
     
     async def get_session(self) -> AsyncSession:
         """Get async database session"""
+        self._ensure_initialized()
+        if not self.session_factory:
+            raise RuntimeError("Database not available")
         return self.session_factory()
     
     @async_cached(expire_seconds=7200, key_prefix="color_palettes")
@@ -473,6 +506,26 @@ class AsyncDatabaseService:
         except Exception as e:
             logger.error(f"Error closing database connections: {e}")
 
+# Initialize database tables asynchronously
+async def async_create_tables():
+    """Create database tables asynchronously"""
+    try:
+        # Ensure async_db_service is initialized
+        async_db_service._ensure_initialized()
+        
+        # Check if engine is available
+        if not async_db_service.engine or async_db_service.engine == "unavailable":
+            logger.error("Database engine not available, skipping table creation")
+            return
+        
+        from database import Base
+        async with async_db_service.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Async database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating async database tables: {e}")
+        # Don't raise the exception to allow the app to start without DB
+
 # Global async database service instance
 async_db_service = AsyncDatabaseService()
 
@@ -489,17 +542,6 @@ async def get_async_db() -> AsyncSession:
         finally:
             await session.close()
 
-# Initialize database tables asynchronously
-async def async_create_tables():
-    """Create database tables asynchronously"""
-    try:
-        from database import Base
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Async database tables created successfully")
-    except Exception as e:
-        logger.error(f"Error creating async database tables: {e}")
-        raise
 
 # Initialize color palette data asynchronously
 async def async_init_color_palette_data():

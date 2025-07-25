@@ -22,20 +22,33 @@ const DemoProcess = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const analyzeSkinColor = async (imageBlob: Blob) => {
     try {
-      console.log("Analyzing skin tone from image blob", imageBlob);
+      console.log("Analyzing skin tone from image blob", {
+        size: imageBlob.size,
+        type: imageBlob.type,
+        endpoint: API_ENDPOINTS.ANALYZE_SKIN_TONE
+      });
       
       // Create form data for API call
       const formData = new FormData();
       formData.append('file', imageBlob, 'uploaded-image.jpg');
       
-      // Call the skin tone analysis API
+      console.log('Sending request to:', API_ENDPOINTS.ANALYZE_SKIN_TONE);
+      console.log('FormData entries:', Array.from(formData.entries()));
+      
+      // Call the skin tone analysis API with proper headers
       const response = await fetch(API_ENDPOINTS.ANALYZE_SKIN_TONE, {
         method: 'POST',
         body: formData,
+        // Don't set Content-Type header - let browser set it with boundary
       });
       
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
       
       const result = await response.json();
@@ -81,9 +94,17 @@ const DemoProcess = () => {
       // Store the captured image in sessionStorage
       sessionStorage.setItem('capturedImage', image);
       
-      // Convert base64 image to blob
-      const response = await fetch(image);
-      const blob = await response.blob();
+      // Convert base64 image to blob with proper type
+      const base64Data = image.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/jpeg' });
+      
+      console.log('Created blob:', blob.size, 'bytes, type:', blob.type);
       
       // Analyze skin color
       await analyzeSkinColor(blob);

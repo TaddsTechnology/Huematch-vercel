@@ -68,4 +68,6 @@ psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
 alembic==1.13.1
 redis==5.0.1
-aioredis==2.0.1
+asyncpg==0.29.0
+psutil==5.9.8
+dramatiq==1.14.2

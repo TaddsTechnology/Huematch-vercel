@@ -43,15 +43,11 @@ services:
 
   # Backend API service
   backend:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
+    image: newbie028/ai-fashion-backend:latest
     container_name: ai-fashion-backend
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - /app/venv  # Exclude venv from bind mount
       - uploaded_images:/app/uploaded_images
     environment:
       - PYTHONPATH=/app
