@@ -1,4 +1,18 @@
 from fastapi import FastAPI, Query, HTTPException, File, UploadFile, Depends, BackgroundTasks
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+# Feedback data models
+class FeedbackRequest(BaseModel):
+    emotion: str
+    rating: int = 0
+    issues: List[str] = []
+    improvements: str = ""
+    wouldRecommend: bool = False
+    userContext: Optional[Dict[str, Any]] = None
+    timestamp: datetime = datetime.now()
+    page: str = "recommendations"
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -968,18 +982,42 @@ def find_closest_monk_tone_enhanced(rgb_color: np.ndarray) -> Dict:
         monk_rgb = np.array(hex_to_rgb(monk_hex))
         monk_brightnesses[monk_name] = np.mean(monk_rgb)
     
-    # Find the closest match using improved algorithm
+    # PRE-CLASSIFICATION: Use brightness to narrow down options first
+    if avg_brightness >= 220:  # Very light skin - Blonde/Fair
+        candidate_monks = ['Monk 1', 'Monk 2']
+        logger.info(f"Very light skin detected (brightness={avg_brightness:.1f}), limiting to Monk 1-2")
+    elif avg_brightness >= 190:  # Light skin
+        candidate_monks = ['Monk 1', 'Monk 2', 'Monk 3']
+        logger.info(f"Light skin detected (brightness={avg_brightness:.1f}), limiting to Monk 1-3")
+    elif avg_brightness >= 150:  # Light-medium skin
+        candidate_monks = ['Monk 2', 'Monk 3', 'Monk 4', 'Monk 5']
+        logger.info(f"Light-medium skin detected (brightness={avg_brightness:.1f}), limiting to Monk 2-5")
+    elif avg_brightness >= 120:  # Medium skin
+        candidate_monks = ['Monk 4', 'Monk 5', 'Monk 6']
+        logger.info(f"Medium skin detected (brightness={avg_brightness:.1f}), limiting to Monk 4-6")
+    elif avg_brightness >= 90:   # Medium-dark skin
+        candidate_monks = ['Monk 5', 'Monk 6', 'Monk 7', 'Monk 8']
+        logger.info(f"Medium-dark skin detected (brightness={avg_brightness:.1f}), limiting to Monk 5-8")
+    elif avg_brightness >= 60:   # Dark skin
+        candidate_monks = ['Monk 7', 'Monk 8', 'Monk 9']
+        logger.info(f"Dark skin detected (brightness={avg_brightness:.1f}), limiting to Monk 7-9")
+    else:  # Very dark skin
+        candidate_monks = ['Monk 8', 'Monk 9', 'Monk 10']
+        logger.info(f"Very dark skin detected (brightness={avg_brightness:.1f}), limiting to Monk 8-10")
+    
+    # Find the closest match among candidates using improved algorithm
     min_distance = float('inf')
     closest_monk = None
     
-    for monk_name, monk_hex in MONK_SKIN_TONES.items():
+    for monk_name in candidate_monks:
+        monk_hex = MONK_SKIN_TONES[monk_name]
         monk_rgb = np.array(hex_to_rgb(monk_hex))
         
         # Multi-factor distance calculation
         # 1. Euclidean distance in RGB space
         euclidean_distance = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
         
-        # 2. Brightness difference (heavily weighted for extreme ends)
+        # 2. Brightness difference
         brightness_diff = abs(avg_brightness - np.mean(monk_rgb))
         
         # 3. Color saturation difference
@@ -987,16 +1025,13 @@ def find_closest_monk_tone_enhanced(rgb_color: np.ndarray) -> Dict:
         monk_saturation = (np.max(monk_rgb) - np.min(monk_rgb)) / np.max(monk_rgb) if np.max(monk_rgb) > 0 else 0
         saturation_diff = abs(input_saturation - monk_saturation)
         
-        # 4. Weighted combination with emphasis on brightness for extreme tones
-        if avg_brightness > 230:  # Very light skin
-            # Heavily weight brightness for very light skin
-            distance = euclidean_distance * 0.3 + brightness_diff * 2.0 + saturation_diff * 50
-        elif avg_brightness < 100:  # Very dark skin
-            # Heavily weight brightness for very dark skin  
-            distance = euclidean_distance * 0.3 + brightness_diff * 2.5 + saturation_diff * 30
-        else:  # Medium skin tones
-            # Balanced weighting for medium tones
-            distance = euclidean_distance * 0.7 + brightness_diff * 1.0 + saturation_diff * 20
+        # 4. Weighted combination optimized for each brightness range
+        if avg_brightness >= 190:  # Light skin - prioritize brightness matching
+            distance = euclidean_distance * 0.4 + brightness_diff * 3.0 + saturation_diff * 10
+        elif avg_brightness >= 120:  # Medium skin - balanced approach
+            distance = euclidean_distance * 0.6 + brightness_diff * 1.5 + saturation_diff * 15
+        else:  # Dark skin - prioritize overall color matching
+            distance = euclidean_distance * 0.7 + brightness_diff * 2.0 + saturation_diff * 20
         
         logger.info(f"{monk_name}: euclidean={euclidean_distance:.2f}, brightness_diff={brightness_diff:.2f}, sat_diff={saturation_diff:.3f}, total={distance:.2f}")
         
@@ -1004,30 +1039,19 @@ def find_closest_monk_tone_enhanced(rgb_color: np.ndarray) -> Dict:
             min_distance = distance
             closest_monk = monk_name
     
-    # Additional validation for extreme cases
-    if avg_brightness > 240 and closest_monk not in ['Monk 1', 'Monk 2']:
-        logger.info(f"Very light skin detected (brightness={avg_brightness:.1f}), forcing Monk 1-2 range")
-        # Force to lightest appropriate tone
-        light_options = ['Monk 1', 'Monk 2']
-        min_dist = float('inf')
-        for option in light_options:
-            monk_rgb = np.array(hex_to_rgb(MONK_SKIN_TONES[option]))
-            dist = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
-            if dist < min_dist:
-                min_dist = dist
-                closest_monk = option
-    
-    elif avg_brightness < 80 and closest_monk not in ['Monk 8', 'Monk 9', 'Monk 10']:
-        logger.info(f"Very dark skin detected (brightness={avg_brightness:.1f}), forcing Monk 8-10 range")
-        # Force to darkest appropriate tone
-        dark_options = ['Monk 8', 'Monk 9', 'Monk 10']
-        min_dist = float('inf')
-        for option in dark_options:
-            monk_rgb = np.array(hex_to_rgb(MONK_SKIN_TONES[option]))
-            dist = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
-            if dist < min_dist:
-                min_dist = dist
-                closest_monk = option
+    # Safety fallback if no candidate was selected
+    if closest_monk is None:
+        logger.warning("No candidate selected, using brightness-based fallback")
+        if avg_brightness >= 190:
+            closest_monk = 'Monk 1'
+        elif avg_brightness >= 150:
+            closest_monk = 'Monk 3'
+        elif avg_brightness >= 120:
+            closest_monk = 'Monk 5'
+        elif avg_brightness >= 90:
+            closest_monk = 'Monk 7'
+        else:
+            closest_monk = 'Monk 9'
     
     # Format result
     monk_number = closest_monk.split()[1]

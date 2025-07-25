@@ -51,6 +51,19 @@ class ColorSuggestions(Base):
     suitable_colors_text = Column(Text, nullable=False)  # Comma-separated color names
     data_source = Column(String, nullable=True)
 
+class ComprehensiveColors(Base):
+    __tablename__ = "comprehensive_colors"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    hex_code = Column(String, index=True, nullable=False)  # Hex color code like #FFFFFF
+    color_name = Column(String, nullable=True)  # Human-readable color name
+    monk_tones = Column(JSON, nullable=True)  # Array of compatible Monk tones ["Monk01", "Monk02"]
+    seasonal_types = Column(JSON, nullable=True)  # Array of compatible seasonal types
+    color_family = Column(String, nullable=True)  # e.g., "blue", "red", "neutral"
+    brightness_level = Column(String, nullable=True)  # "light", "medium", "dark"
+    undertone = Column(String, nullable=True)  # "cool", "warm", "neutral"
+    data_source = Column(String, nullable=True)  # Source of the color data
+
 # Dependency to get database session
 def get_database():
     """Get database session"""

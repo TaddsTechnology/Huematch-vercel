@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Star, Sparkles, Crown, Shirt, Palette } from 'lucide-react';
 import ProductRecommendations from '../components/ProductRecommendations';
+import FeedbackPopup from '../components/FeedbackPopup';
 import { API_ENDPOINTS, buildApiUrl } from '../config/api';
 
 // Consolidated interfaces
@@ -67,6 +68,19 @@ interface ColorRecommendations {
 }
 
 const DemoRecommendations = () => {
+  const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowFeedbackPopup(true);
+    }, 4000); // Show popup after 4 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleFeedbackClose = () => {
+    setShowFeedbackPopup(false);
+  };
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -536,6 +550,16 @@ const DemoRecommendations = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50">
+        {/* Feedback Popup */}
+        <FeedbackPopup 
+          isVisible={showFeedbackPopup}
+          onClose={handleFeedbackClose}
+          userContext={{
+            monkSkinTone,
+            activeTab,
+            sessionId: Date.now().toString() // Simple session ID
+          }}
+        />
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
