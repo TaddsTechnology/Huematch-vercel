@@ -341,15 +341,28 @@ const DemoRecommendations = () => {
     try {
       const storedAnalysis = sessionStorage.getItem('skinAnalysis');
       if (storedAnalysis) {
-        const analysisArray = JSON.parse(storedAnalysis);
-        if (analysisArray && analysisArray.length >= 2) {
-          setSkinAnalysis(analysisArray[0]);
-          setSkinHex(analysisArray[1]);
+        const analysisData = JSON.parse(storedAnalysis);
+        
+        // Handle both old array format and new object format
+        if (Array.isArray(analysisData) && analysisData.length >= 2) {
+          // Old format: [analysis, hex]
+          setSkinAnalysis(analysisData[0]);
+          setSkinHex(analysisData[1]);
           
           // Determine Monk skin tone from hex color
-          const hexColor = analysisArray[1];
+          const hexColor = analysisData[1];
           const monkId = determineMonkSkinTone(hexColor);
           setMonkSkinTone(monkId);
+        } else if (analysisData && typeof analysisData === 'object' && analysisData.monk_skin_tone) {
+          // New format: direct SkinAnalysisResult object
+          setSkinAnalysis(analysisData);
+          
+          // Use the derived_hex_code or monk_hex as the primary skin hex
+          const hexColor = analysisData.derived_hex_code || analysisData.monk_hex;
+          setSkinHex(hexColor);
+          setMonkSkinTone(analysisData.monk_skin_tone);
+          
+          console.log('Skin analysis result:', analysisData);
         }
       }
     } catch (err) {
@@ -751,8 +764,8 @@ const DemoRecommendations = () => {
                           </h3>
                           
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                            {colorRecommendations.colors_that_suit.map((color) => (
-                              <div key={color.hex} className="bg-gray-50 p-3 rounded-lg hover:shadow-md transition-shadow">
+                            {colorRecommendations.colors_that_suit.map((color, index) => (
+                              <div key={`${color.hex}-${color.name}-${index}`} className="bg-gray-50 p-3 rounded-lg hover:shadow-md transition-shadow">
                                 <div 
                                   className="w-full h-16 rounded-lg shadow-md mb-2"
                                   style={{ backgroundColor: color.hex }}
