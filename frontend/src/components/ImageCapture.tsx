@@ -49,7 +49,7 @@ const ImageCapture: React.FC<ImageCaptureProps> = ({ onImageCapture }) => {
             className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-purple-300 rounded-xl hover:border-purple-500 transition-colors"
           >
             <Camera className="w-8 h-8 text-purple-500 mb-2" />
-            <span className="text-sm font-medium text-gray-600">Take Photo</span>
+            <span className="text-sm font-medium text-gray-600">Turn on Camera</span>
           </button>
 
           <button
@@ -57,7 +57,7 @@ const ImageCapture: React.FC<ImageCaptureProps> = ({ onImageCapture }) => {
             className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-purple-300 rounded-xl hover:border-purple-500 transition-colors"
           >
             <Upload className="w-8 h-8 text-purple-500 mb-2" />
-            <span className="text-sm font-medium text-gray-600">Upload Photo</span>
+            <span className="text-sm font-medium text-gray-600">Upload from Gallery</span>
           </button>
           
           <input
@@ -82,13 +82,13 @@ const ImageCapture: React.FC<ImageCaptureProps> = ({ onImageCapture }) => {
               onClick={handleCapture}
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              Capture
+              Snap a Pic!
             </button>
             <button
               onClick={() => setShowCamera(false)}
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              Cancel
+              Go Back
             </button>
           </div>
         </div>

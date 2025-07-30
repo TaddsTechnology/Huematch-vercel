@@ -91,7 +91,7 @@ const LandingPage = () => {
               <Link to="/about" className="text-gray-600 hover:text-purple-600 transition-colors">About</Link>
               <Link to="/demo" className="text-gray-600 hover:text-purple-600 transition-colors">Demo</Link>
               <Link to="/contact" className="text-gray-600 hover:text-purple-600 transition-colors">Contact</Link>
-              <Link to="/demo" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:opacity-90 transition-all">Try Now</Link>
+              <Link to="/demo" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:opacity-90 transition-all">✨ Discover My Colors</Link>
             </div>
           </div>
         </div>
@@ -113,16 +113,16 @@ const LandingPage = () => {
                   to="/demo"
                   className="group inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-full text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
-                  Try Live Demo
+                  🎨 Find My Perfect Colors
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <button className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-full text-purple-600 bg-white/80 backdrop-blur hover:bg-white transition-all duration-300 shadow-md hover:shadow-lg border border-purple-100">
-                  Learn More
+                  💖 See How It Works
                 </button>
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-500 justify-center lg:justify-start">
                 <Zap className="h-4 w-4 text-pink-500" />
-                <span>Join over 100,000 users who've found their perfect colors</span>
+                <span>Join over 100,000 beauty lovers who've discovered their signature style</span>
               </div>
             </div>
             
@@ -160,7 +160,7 @@ const LandingPage = () => {
                 <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
                   <Sparkle className="h-5 w-5 text-pink-600" />
                 </div>
-                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">AI-Powered Beauty Analysis</span>
+                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">✨ Smart Beauty Insights</span>
               </div>
             </div>
           </div>

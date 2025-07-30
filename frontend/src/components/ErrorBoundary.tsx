@@ -107,15 +107,15 @@ class ErrorBoundary extends Component<Props, State> {
     
     switch (errorType) {
       case 'Network Error':
-        return 'Unable to connect to our servers. Please check your internet connection and try again.';
+        return 'Connection interrupted. Please check your internet and try again.';
       case 'Loading Error':
-        return 'There was a problem loading the application. This usually resolves with a refresh.';
+        return 'Having trouble loading your beauty profile. A quick refresh usually helps!';
       case 'Data Error':
-        return 'There was an issue processing your request. Please try again or contact support.';
+        return 'Unable to process your color analysis. Please try again or reach out for help.';
       case 'Permission Error':
-        return 'You don\'t have permission to access this feature. Please sign in or contact support.';
+        return 'Access restricted. Please sign in or contact our support team.';
       default:
-        return 'An unexpected error occurred. Our team has been notified and is working to fix this.';
+        return 'Something went wrong with your color analysis. We\'re working to fix this!';
     }
   };
 

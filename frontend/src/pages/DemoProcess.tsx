@@ -7,17 +7,17 @@ import { API_ENDPOINTS } from '../config/api';
 // import { Client } from "@gradio/client"; // Use dynamic import instead
 
 // Add interface at the top of the file
-interface SkinAnalysisResult {
-  monk_skin_tone: string;
-  monk_hex: string;
-  derived_hex_code: string;
-  dominant_rgb: number[];
+interface ColorProfileResult {
+  skin_tone_type: string;
+  profile_color: string;
+  matched_color: string;
+  color_values: number[];
 }
 
 const DemoProcess = () => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [skinAnalysisResult, setSkinAnalysisResult] = useState<SkinAnalysisResult | null>(null);
+  const [colorProfileResult, setColorProfileResult] = useState<ColorProfileResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const analyzeSkinColor = async (imageBlob: Blob) => {
@@ -110,7 +110,7 @@ const DemoProcess = () => {
       await analyzeSkinColor(blob);
     } catch (error) {
       console.error("Image processing error:", error);
-      setCameraError("Failed to process image. Please try again.");
+      setCameraError("Unable to process your photo. Please try again with better lighting.");
     } finally {
       setIsProcessing(false);
       setIsAnalyzing(false);
@@ -153,7 +153,7 @@ const DemoProcess = () => {
                 {isProcessing ? (
                   <div className="text-center py-12">
                     <RefreshCw className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
-                    <p className="text-lg font-medium text-gray-700">Processing your image...</p>
+                    <p className="text-lg font-medium text-gray-700">Creating your color profile...</p>
                     <p className="text-gray-500">This will only take a moment</p>
                   </div>
                 ) : (

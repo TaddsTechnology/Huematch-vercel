@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Heart, Meh, Frown, Send, MessageCircle, Star } from 'lucide-react';
+import { X, Heart, Sparkles, Star, ThumbsUp, ThumbsDown, Smile, Frown, MessageCircle } from 'lucide-react';
 
 interface FeedbackPopupProps {
   isVisible: boolean;
@@ -12,303 +12,114 @@ interface FeedbackPopupProps {
 }
 
 interface FeedbackData {
-  emotion: string;
-  rating: number;
-  issues: string[];
-  improvements: string;
-  wouldRecommend: boolean;
+  feelingResponse: string;
+  confidenceLevel: number;
+  styleMatch: string;
+  recommendation: boolean;
+  additionalThoughts: string;
 }
 
-const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ 
-  isVisible, 
-  onClose, 
-  userContext = {} 
-}) => {
+const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [feedbackData, setFeedbackData] = useState<FeedbackData>({
-    emotion: '',
-    rating: 0,
-    issues: [],
-    improvements: '',
-    wouldRecommend: false
+    feelingResponse: '',
+    confidenceLevel: 0,
+    styleMatch: '',
+    recommendation: false,
+    additionalThoughts: ''
   });
 
   if (!isVisible) return null;
 
-  const handleEmotionSelect = (emotion: string) => {
-    setFeedbackData(prev => ({ ...prev, emotion }));
-    
-    // If positive emotion, skip to final step
-    if (emotion === 'love' || emotion === 'like') {
-      setCurrentStep(4);
-    } else {
-      setCurrentStep(2);
-    }
+  const handleFeelingSelect = (feeling: string) => {
+    setFeedbackData(prev => ({ ...prev, feelingResponse: feeling }));
+    setCurrentStep(2);
   };
 
-  const handleRatingSelect = (rating: number) => {
-    setFeedbackData(prev => ({ ...prev, rating }));
+  const handleConfidenceSelect = (level: number) => {
+    setFeedbackData(prev => ({ ...prev, confidenceLevel: level }));
     setCurrentStep(3);
   };
 
-  const handleIssueToggle = (issue: string) => {
-    setFeedbackData(prev => ({
-      ...prev,
-      issues: prev.issues.includes(issue)
-        ? prev.issues.filter(i => i !== issue)
-        : [...prev.issues, issue]
-    }));
+  const handleStyleMatchSelect = (match: string) => {
+    setFeedbackData(prev => ({ ...prev, styleMatch: match }));
+    setCurrentStep(4);
+  };
+
+  const handleRecommendationSelect = (rec: boolean) => {
+    setFeedbackData(prev => ({ ...prev, recommendation: rec }));
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    
-    try {
-      const payload = {
-        ...feedbackData,
-        userContext,
-        timestamp: new Date().toISOString(),
-        page: 'recommendations'
-      };
-
-      const response = await fetch('/api/feedback/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        setIsSubmitted(true);
-        setTimeout(() => {
-          onClose();
-          // Reset state after animation
-          setTimeout(() => {
-            setCurrentStep(1);
-            setIsSubmitted(false);
-            setFeedbackData({
-              emotion: '',
-              rating: 0,
-              issues: [],
-              improvements: '',
-              wouldRecommend: false
-            });
-          }, 300);
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Failed to submit feedback:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    console.log("Submitting feedback:", feedbackData);
+    // Mock API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsSubmitted(true);
+    setTimeout(() => {
+      onClose();
+    }, 3000);
   };
 
   const renderStep1 = () => (
     <div className="text-center">
-      <div className="mb-6">
-        <MessageCircle className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-800 mb-2">
-          How do you feel about these recommendations?
-        </h3>
-        <p className="text-gray-600 text-sm">
-          Your feedback helps our AI stylist learn your preferences
-        </p>
-      </div>
-      
-      <div className="space-y-3">
-        <button
-          onClick={() => handleEmotionSelect('love')}
-          className="w-full flex items-center justify-center space-x-3 p-4 rounded-lg border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 group"
-        >
-          <div className="text-2xl">😍</div>
-          <span className="font-medium text-gray-700 group-hover:text-purple-700">Love them!</span>
-        </button>
-        
-        <button
-          onClick={() => handleEmotionSelect('like')}
-          className="w-full flex items-center justify-center space-x-3 p-4 rounded-lg border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 group"
-        >
-          <div className="text-2xl">😊</div>
-          <span className="font-medium text-gray-700 group-hover:text-purple-700">Pretty good</span>
-        </button>
-        
-        <button
-          onClick={() => handleEmotionSelect('okay')}
-          className="w-full flex items-center justify-center space-x-3 p-4 rounded-lg border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 group"
-        >
-          <div className="text-2xl">😐</div>
-          <span className="font-medium text-gray-700 group-hover:text-purple-700">Okay</span>
-        </button>
-        
-        <button
-          onClick={() => handleEmotionSelect('not-great')}
-          className="w-full flex items-center justify-center space-x-3 p-4 rounded-lg border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 group"
-        >
-          <div className="text-2xl">😕</div>
-          <span className="font-medium text-gray-700 group-hover:text-purple-700">Not great</span>
-        </button>
-        
-        <button
-          onClick={() => handleEmotionSelect('dislike')}
-          className="w-full flex items-center justify-center space-x-3 p-4 rounded-lg border-2 border-transparent hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 group"
-        >
-          <div className="text-2xl">😞</div>
-          <span className="font-medium text-gray-700 group-hover:text-purple-700">Don't like them</span>
-        </button>
+      <Sparkles className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+      <h3 className="text-xl font-bold text-gray-800 mb-2">How did these recommendations make you feel?</h3>
+      <div className="flex justify-center gap-4 mt-4">
+        <button onClick={() => handleFeelingSelect('Inspired')} className="p-4 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors">🎨 Inspired</button>
+        <button onClick={() => handleFeelingSelect('Hopeful')} className="p-4 bg-pink-100 rounded-lg hover:bg-pink-200 transition-colors">💖 Hopeful</button>
+        <button onClick={() => handleFeelingSelect('Unsure')} className="p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">🤔 Unsure</button>
       </div>
     </div>
   );
 
   const renderStep2 = () => (
     <div className="text-center">
-      <div className="mb-6">
-        <Star className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-800 mb-2">
-          How would you rate the accuracy?
-        </h3>
-        <p className="text-gray-600 text-sm">
-          On a scale of 1-5, how well did we match your style?
-        </p>
-      </div>
-      
-      <div className="flex justify-center space-x-2 mb-6">
-        {[1, 2, 3, 4, 5].map((rating) => (
-          <button
-            key={rating}
-            onClick={() => handleRatingSelect(rating)}
-            className="p-2 rounded-lg hover:bg-purple-50 transition-colors duration-200"
-          >
-            <Star 
-              className={`h-8 w-8 ${
-                rating <= feedbackData.rating 
-                  ? 'text-yellow-400 fill-current' 
-                  : 'text-gray-300'
-              }`} 
-            />
+      <Star className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+      <h3 className="text-xl font-bold text-gray-800 mb-2">How much did these recommendations boost your confidence?</h3>
+      <div className="flex justify-center items-center gap-2 mt-4">
+        <span>Not at all</span>
+        {[1, 2, 3, 4, 5].map(level => (
+          <button key={level} onClick={() => handleConfidenceSelect(level)} className={`w-10 h-10 rounded-full transition-all ${feedbackData.confidenceLevel >= level ? 'bg-yellow-400 scale-110' : 'bg-gray-200'}`}>
+            {level}
           </button>
         ))}
+        <span>A lot!</span>
       </div>
     </div>
   );
 
-  const renderStep3 = () => {
-    const issueOptions = [
-      'More variety in colors',
-      'Different price ranges',
-      'More styles/brands',
-      'Better size options',
-      'More trendy items',
-      'Classic/timeless pieces',
-      'Better quality items',
-      'More sustainable options'
-    ];
-
-    return (
-      <div className="text-center">
-        <div className="mb-6">
-          <MessageCircle className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
-            What could we improve?
-          </h3>
-          <p className="text-gray-600 text-sm">
-            Select all that apply (optional)
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-2 mb-6">
-          {issueOptions.map((issue) => (
-            <button
-              key={issue}
-              onClick={() => handleIssueToggle(issue)}
-              className={`p-3 text-sm rounded-lg border-2 transition-all duration-200 ${
-                feedbackData.issues.includes(issue)
-                  ? 'border-purple-500 bg-purple-50 text-purple-700'
-                  : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-              }`}
-            >
-              {issue}
-            </button>
-          ))}
-        </div>
-        
-        <button
-          onClick={() => setCurrentStep(4)}
-          className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium"
-        >
-          Continue
-        </button>
+  const renderStep3 = () => (
+    <div className="text-center">
+      <Heart className="h-12 w-12 text-red-500 mx-auto mb-4" />
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Do these recommendations feel like 'you'?</h3>
+      <div className="space-y-3 mt-4">
+        <button onClick={() => handleStyleMatchSelect('Yes')} className="w-full p-4 bg-green-100 rounded-lg hover:bg-green-200 transition-colors">Yes, it's a perfect match!</button>
+        <button onClick={() => handleStyleMatchSelect('Almost')} className="w-full p-4 bg-yellow-100 rounded-lg hover:bg-yellow-200 transition-colors">Almost, but something is a little off.</button>
+        <button onClick={() => handleStyleMatchSelect('No')} className="w-full p-4 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">No, this doesn't feel like my style.</button>
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderStep4 = () => (
     <div className="text-center">
-      <div className="mb-6">
-        <Heart className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-800 mb-2">
-          One final question!
-        </h3>
-        <p className="text-gray-600 text-sm mb-4">
-          Anything else we should know?
-        </p>
-        
-        <textarea
-          placeholder="Tell us more about your style preferences... (optional)"
-          value={feedbackData.improvements}
-          onChange={(e) => setFeedbackData(prev => ({ ...prev, improvements: e.target.value }))}
-          className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          rows={3}
-        />
+      <Smile className="h-12 w-12 text-green-500 mx-auto mb-4" />
+      <h3 className="text-xl font-bold text-gray-800 mb-2">Would you recommend us to a friend?</h3>
+      <div className="flex justify-center gap-4 mt-4">
+        <button onClick={() => handleRecommendationSelect(true)} className="p-4 bg-green-100 rounded-lg hover:bg-green-200 transition-colors"><ThumbsUp className="inline mr-2"/> Yes</button>
+        <button onClick={() => handleRecommendationSelect(false)} className="p-4 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"><ThumbsDown className="inline mr-2"/> No</button>
       </div>
-      
-      <div className="space-y-3">
-        <div className="flex items-center justify-center space-x-4 mb-4">
-          <span className="text-gray-700">Would you recommend our AI stylist?</span>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFeedbackData(prev => ({ ...prev, wouldRecommend: true }))}
-              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                feedbackData.wouldRecommend 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-gray-200 hover:bg-green-100'
-              }`}
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => setFeedbackData(prev => ({ ...prev, wouldRecommend: false }))}
-              className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                !feedbackData.wouldRecommend && feedbackData.wouldRecommend !== null
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-gray-200 hover:bg-red-100'
-              }`}
-            >
-              No
-            </button>
-          </div>
-        </div>
-        
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-              <span>Sending...</span>
-            </>
-          ) : (
-            <>
-              <Send className="h-4 w-4" />
-              <span>Send Feedback</span>
-            </>
-          )}
-        </button>
-      </div>
+      <textarea
+        placeholder="Have more to say? We're listening..."
+        value={feedbackData.additionalThoughts}
+        onChange={(e) => setFeedbackData(prev => ({ ...prev, additionalThoughts: e.target.value }))}
+        className="w-full mt-4 p-2 border rounded-lg"
+      />
+      <button onClick={handleSubmit} disabled={isSubmitting} className="mt-4 w-full bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors">
+        {isSubmitting ? 'Sending...' : 'Submit Feedback'}
+      </button>
     </div>
   );
 
@@ -332,32 +143,35 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out">
+    <div className="fixed inset-0 bg-gradient-to-br from-purple-900/50 to-pink-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-white to-purple-50/30 rounded-3xl shadow-2xl max-w-md w-full transform transition-all duration-500 ease-out border border-purple-200/30">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-              <MessageCircle className="h-4 w-4 text-purple-600" />
+        <div className="flex items-center justify-between p-6 border-b border-purple-100/50">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center shadow-lg">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="font-medium text-gray-800">Quick Style Check</span>
+            <span className="font-bold text-gray-800 text-lg">💜 Style Insights</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
+            className="p-2 hover:bg-purple-100 rounded-full transition-all duration-200 group"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500 group-hover:text-purple-600" />
           </button>
         </div>
 
         {/* Progress Bar */}
         {!isSubmitted && (
-          <div className="px-6 py-2">
-            <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="px-6 py-4">
+            <div className="w-full bg-purple-100 rounded-full h-3 shadow-inner">
               <div 
-                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 shadow-sm"
                 style={{ width: `${(currentStep / 4) * 100}%` }}
               />
+            </div>
+            <div className="text-center mt-2 text-sm text-purple-600 font-medium">
+              Step {currentStep} of 4
             </div>
           </div>
         )}
@@ -377,9 +191,9 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({
         {/* Footer */}
         {!isSubmitted && (
           <div className="px-6 pb-4">
-            <div className="flex items-center justify-center space-x-1 text-xs text-gray-500">
-              <span>Powered by</span>
-              <span className="font-medium text-purple-600">AI Fashion</span>
+            <div className="flex items-center justify-center space-x-1 text-xs text-purple-500/70">
+              <Sparkles className="h-3 w-3" />
+              <span>Powered by AI Fashion Intelligence</span>
             </div>
           </div>
         )}

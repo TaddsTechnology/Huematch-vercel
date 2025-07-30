@@ -3,6 +3,8 @@ export interface MonkSkinTone {
   name: string;
   hexCode: string;
   description: string;
+  userFriendlyName: string; // New field for seasonal color analysis names
+  seasonalType: string; // Seasonal color type for better understanding
   flatteringColors: {
     name: string;
     hex: string;
@@ -17,6 +19,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk01": {
     id: "Monk01",
     name: "Monk 01",
+    userFriendlyName: "Light Summer",
+    seasonalType: "Cool & Light",
     hexCode: "#f6ede4",
     description: "Very fair skin with cool or neutral undertones. Colors with blue or purple undertones will complement this skin tone beautifully.",
     flatteringColors: [
@@ -37,6 +41,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk02": {
     id: "Monk02",
     name: "Monk 02",
+    userFriendlyName: "Light Spring",
+    seasonalType: "Light & Fresh",
     hexCode: "#f3e7db",
     description: "Fair skin with neutral to cool undertones. Soft, cool colors will enhance your natural complexion.",
     flatteringColors: [
@@ -57,6 +63,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk03": {
     id: "Monk03",
     name: "Monk 03",
+    userFriendlyName: "Warm Spring",
+    seasonalType: "Warm & Bright",
     hexCode: "#f7ead0",
     description: "Light skin with warm, peachy undertones. Warm, soft colors will enhance your natural glow.",
     flatteringColors: [
@@ -77,6 +85,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk04": {
     id: "Monk04",
     name: "Monk 04",
+    userFriendlyName: "Clear Spring",
+    seasonalType: "Clear & Vibrant",
     hexCode: "#eadaba",
     description: "Light to medium skin with warm, golden undertones. Warm, clear colors will complement your complexion.",
     flatteringColors: [
@@ -97,6 +107,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk05": {
     id: "Monk05",
     name: "Monk 05",
+    userFriendlyName: "Soft Autumn",
+    seasonalType: "Warm & Muted",
     hexCode: "#d7bd96",
     description: "Medium skin with neutral to warm undertones. Rich, warm colors will enhance your natural warmth.",
     flatteringColors: [
@@ -117,6 +129,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk06": {
     id: "Monk06",
     name: "Monk 06",
+    userFriendlyName: "Warm Autumn",
+    seasonalType: "Rich & Earthy",
     hexCode: "#a07e56",
     description: "Medium to deep skin with warm, golden undertones. Rich, earthy colors will complement your complexion.",
     flatteringColors: [
@@ -137,6 +151,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk07": {
     id: "Monk07",
     name: "Monk 07",
+    userFriendlyName: "Deep Autumn",
+    seasonalType: "Deep & Warm",
     hexCode: "#825c43",
     description: "Deep skin with warm, rich undertones. Bold, vibrant colors will enhance your natural richness.",
     flatteringColors: [
@@ -157,6 +173,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk08": {
     id: "Monk08",
     name: "Monk 08",
+    userFriendlyName: "Deep Winter",
+    seasonalType: "Bold & Dramatic",
     hexCode: "#604134",
     description: "Deep skin with neutral to warm undertones. Rich, vibrant colors will complement your complexion beautifully.",
     flatteringColors: [
@@ -177,6 +195,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk09": {
     id: "Monk09",
     name: "Monk 09",
+    userFriendlyName: "Cool Winter",
+    seasonalType: "Cool & Intense",
     hexCode: "#3a312a",
     description: "Deep skin with cool undertones. Bold, jewel-toned colors will enhance your natural depth.",
     flatteringColors: [
@@ -197,6 +217,8 @@ export const monkSkinTones: Record<string, MonkSkinTone> = {
   "Monk10": {
     id: "Monk10",
     name: "Monk 10",
+    userFriendlyName: "Clear Winter",
+    seasonalType: "Vibrant & Contrasting",
     hexCode: "#292420",
     description: "Very deep skin with neutral to cool undertones. Bold, bright colors will create a stunning contrast with your complexion.",
     flatteringColors: [

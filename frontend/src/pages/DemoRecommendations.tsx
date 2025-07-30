@@ -5,6 +5,7 @@ import { Star, Sparkles, Crown, Shirt, Palette } from 'lucide-react';
 import ProductRecommendations from '../components/ProductRecommendations';
 import FeedbackPopup from '../components/FeedbackPopup';
 import { API_ENDPOINTS, buildApiUrl } from '../config/api';
+import { monkSkinTones } from '../lib/data/monkSkinTones';
 
 // Consolidated interfaces
 interface Product {
@@ -153,28 +154,28 @@ const DemoRecommendations = () => {
             setColorRecommendations(data);
             setError(null); // Clear any previous errors
           } else {
-            console.error('Color recommendations API failed with status:', response.status);
+            console.error('Color matching service temporarily unavailable:', response.status);
             
-            // Try the database endpoint as fallback
+            // Try the color library as fallback
             try {
               const fallbackResponse = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(queryParams)));
               if (fallbackResponse.ok) {
                 const fallbackData = await fallbackResponse.json();
-                console.log('Fallback color recommendations response:', fallbackData);
+                console.log('Using color library for recommendations:', fallbackData);
                 setColorRecommendations(fallbackData);
                 setError(null);
               } else {
-                throw new Error('Both color recommendation endpoints failed');
+                throw new Error('Color services temporarily unavailable');
               }
             } catch (fallbackError) {
-              console.error('Fallback API also failed:', fallbackError);
+              console.error('Color library also unavailable:', fallbackError);
               // Use local color matching as final fallback
               const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
               setColorRecommendations(localRecommendations);
             }
           }
         } catch (err) {
-          console.error('Error fetching color recommendations:', err);
+          console.error('Unable to fetch color recommendations:', err);
           // Use local color matching as fallback
           const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
           setColorRecommendations(localRecommendations);
@@ -220,7 +221,7 @@ const DemoRecommendations = () => {
           response = await fetch(buildApiUrl(API_ENDPOINTS.MAKEUP_DATA, Object.fromEntries(queryParams)));
           
           if (!response.ok) {
-            throw new Error(`Failed to fetch makeup recommendations: ${response.status} ${response.statusText}`);
+            throw new Error(`Unable to load makeup recommendations: ${response.status} ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -251,7 +252,7 @@ const DemoRecommendations = () => {
                 });
               }
             } catch (err) {
-              console.error('Error fetching makeup types:', err);
+              console.error('Unable to load makeup categories:', err);
             }
           }
         } else if (activeTab === 'outfit') {
@@ -291,7 +292,7 @@ const DemoRecommendations = () => {
           response = await fetch(`http://localhost:8000/apparel?${colorParams.toString()}`);
           
           if (!response.ok) {
-            throw new Error(`Failed to fetch outfit recommendations: ${response.status} ${response.statusText}`);
+            throw new Error(`Unable to load outfit recommendations: ${response.status} ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -366,8 +367,8 @@ const DemoRecommendations = () => {
         }
       }
     } catch (err) {
-      console.error('Error loading skin analysis from session storage:', err);
-      setError('Error loading your skin analysis. Please try analyzing your skin again.');
+      console.error('Unable to load your color profile from session storage:', err);
+      setError('Unable to load your color profile. Please try analyzing your photo again.');
     }
   }, []);
   
@@ -740,8 +741,11 @@ const DemoRecommendations = () => {
                         {colorRecommendations?.seasonal_type && (
                           <p className="text-purple-600 font-medium">{colorRecommendations.seasonal_type} Color Type</p>
                         )}
-                        {colorRecommendations?.monk_skin_tone && (
-                          <p className="text-gray-600 text-sm">{colorRecommendations.monk_skin_tone}</p>
+                        {monkSkinTone && monkSkinTones[monkSkinTone] && (
+                          <div className="text-gray-600 text-sm">
+                            <p className="font-medium">{monkSkinTones[monkSkinTone].userFriendlyName}</p>
+                            <p className="text-xs text-gray-500">{monkSkinTones[monkSkinTone].seasonalType}</p>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -107,8 +107,8 @@ const MonkColorPalettePage = () => {
                   className="w-16 h-16 rounded-full shadow-md mb-2"
                   style={{ backgroundColor: tone.hexCode }}
                 />
-                <span className="text-xs font-medium text-gray-700">{tone.name}</span>
-                <span className="text-xs text-gray-500">{tone.hexCode}</span>
+                <span className="text-xs font-medium text-gray-700">{tone.userFriendlyName}</span>
+                <span className="text-xs text-gray-500">{tone.seasonalType}</span>
               </button>
             ))}
           </div>
@@ -123,8 +123,11 @@ const MonkColorPalettePage = () => {
             />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {skinTone.name} Color Palette
+                {skinTone.userFriendlyName} Color Palette
               </h1>
+              <p className="text-sm text-purple-600 font-medium">
+                {skinTone.seasonalType}
+              </p>
               <p className="text-gray-600">
                 {skinTone.hexCode}
               </p>
@@ -371,7 +374,7 @@ const MonkColorPalettePage = () => {
               className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />
-              Previous: {monkSkinTones[prevMonkId].name}
+              Previous: {monkSkinTones[prevMonkId].userFriendlyName}
             </button>
           ) : (
             <div></div>
@@ -382,7 +385,7 @@ const MonkColorPalettePage = () => {
               onClick={() => navigate(`/monk-colors/${nextMonkId}`)}
               className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
             >
-              Next: {monkSkinTones[nextMonkId].name}
+              Next: {monkSkinTones[nextMonkId].userFriendlyName}
               <ArrowLeft className="w-5 h-5 ml-2 transform rotate-180" />
             </button>
           )}

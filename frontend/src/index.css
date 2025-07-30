@@ -1,3 +1,45 @@
+
+/* CSS keyframes for fade-in animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Shimmer effect for loading placeholders */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer-bg {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(to right, #f6f7f8 4%, #e9ebee 25%, #f6f7f8 36%);
+  background-size: 1000px 100%;
+}
+
+/* General transition styles for interactive elements */
+.transition-fast {
+  transition-duration: 200ms;
+}
+
+.transition-slow {
+  transition-duration: 500ms;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

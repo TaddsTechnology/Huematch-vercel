@@ -25,11 +25,11 @@ interface CategoryType {
   description: string;
 }
 
-interface SkinAnalysisResult {
-  monk_skin_tone: string;
-  monk_hex: string;
-  derived_hex_code: string;
-  dominant_rgb: number[];
+interface ColorProfileResult {
+  skin_tone_type: string;
+  profile_color: string;
+  matched_color: string;
+  color_values: number[];
 }
 
 const DemoTryOn = () => {
@@ -37,7 +37,7 @@ const DemoTryOn = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('lipstick');
   const [selectedColor, setSelectedColor] = useState<string>();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [skinAnalysis, setSkinAnalysis] = useState<SkinAnalysisResult | null>(null);
+  const [colorProfile, setColorProfile] = useState<ColorProfileResult | null>(null);
   const [colorRecommendations, setColorRecommendations] = useState<ColorRecommendations | null>(null);
   
   useEffect(() => {

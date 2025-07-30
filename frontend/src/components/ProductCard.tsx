@@ -42,7 +42,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       <div className="relative aspect-square overflow-hidden bg-gray-100">
         <img
           src={image}
-          alt={name}
+          alt={`Stunning ${name} by ${brand} - perfect for your unique style`}
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
@@ -83,12 +83,16 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <button
               onClick={onFavorite}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Save to your favorites - you'll love this!"
+              title="Add to wishlist ❤️"
             >
               <Heart className="w-5 h-5 text-gray-600" />
             </button>
             <button
               onClick={onAddToCart}
               className="p-2 rounded-full bg-purple-100 hover:bg-purple-200 transition-colors"
+              aria-label="Get this amazing product - it's perfect for you!"
+              title="Add to cart 🛍️"
             >
               <ShoppingCart className="w-5 h-5 text-purple-600" />
             </button>
