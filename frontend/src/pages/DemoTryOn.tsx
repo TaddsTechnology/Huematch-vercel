@@ -32,6 +32,12 @@ interface ColorProfileResult {
   color_values: number[];
 }
 
+interface SkinAnalysisResult {
+  monk_skin_tone: string;
+  monk_hex: string;
+  derived_hex_code: string;
+}
+
 const DemoTryOn = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>('lipstick');
@@ -39,6 +45,7 @@ const DemoTryOn = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [colorProfile, setColorProfile] = useState<ColorProfileResult | null>(null);
   const [colorRecommendations, setColorRecommendations] = useState<ColorRecommendations | null>(null);
+  const [skinAnalysis, setSkinAnalysis] = useState<SkinAnalysisResult | null>(null);
   
   useEffect(() => {
     const image = sessionStorage.getItem('capturedImage');
@@ -147,9 +154,9 @@ const DemoTryOn = () => {
         <div className="min-h-[60vh] flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-white">
           <div className="text-center bg-white p-8 rounded-3xl shadow-2xl max-w-md mx-auto border border-purple-100">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4 animate-bounce" />
-            <p className="text-gray-600 text-lg mb-4">No image found. Please capture or upload an image first.</p>
+            <p className="text-gray-600 text-lg mb-4">We need your photo to create your personalized color palette. Let's get started!</p>
             <Button variant="primary" icon={Camera} onClick={() => navigate('/demo/process')}>
-              Take Photo
+              Upload Your Photo
             </Button>
           </div>
         </div>
@@ -166,10 +173,10 @@ const DemoTryOn = () => {
             <div className="text-center mb-4">
               <span className="inline-flex items-center gap-2 bg-purple-50 px-4 py-2 rounded-full text-purple-700 font-medium text-sm mb-2">
                 <Crown className="w-4 h-4" />
-                Virtual Beauty Studio
+                Color Analysis Complete
               </span>
-              <h1 className="text-3xl font-bold text-gray-900">Your Personal Color Analysis</h1>
-              <p className="text-gray-600 mt-2">Discover your perfect colors and enhance your natural beauty</p>
+              <h1 className="text-3xl font-bold text-gray-900">Your Perfect Color Palette</h1>
+              <p className="text-gray-600 mt-2">Colors that make you look and feel amazing</p>
             </div>
           </div>
         </div>
@@ -193,7 +200,15 @@ const DemoTryOn = () => {
                     <div className="space-y-4">
                       <div className="bg-purple-50 p-4 rounded-xl">
                         <p className="text-sm text-gray-600">Detected Skin Tone</p>
-                        <p className="font-medium text-gray-900">{skinAnalysis.monk_skin_tone}</p>
+                        <p className="font-medium text-gray-900">
+                          {(() => {
+                            const monkScale = parseInt(skinAnalysis.monk_skin_tone.replace('Monk', '').replace('monk', ''));
+                            if (monkScale <= 3) return 'Light Skin Tone';
+                            if (monkScale <= 7) return 'Medium Skin Tone';
+                            return 'Deep Skin Tone';
+                          })()
+                          }
+                        </p>
                       </div>
                       <div className="flex gap-4">
                         {[skinAnalysis.monk_hex, skinAnalysis.derived_hex_code].map((color, idx) => (

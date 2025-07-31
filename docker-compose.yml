@@ -96,9 +96,7 @@ services:
     container_name: ai-fashion-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules  # Exclude node_modules from bind mount
+    # Removed volumes for production mode - changes will be in the built image
     environment:
       - VITE_API_URL=http://localhost:8000
       - NODE_ENV=production

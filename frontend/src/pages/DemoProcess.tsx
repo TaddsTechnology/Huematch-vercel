@@ -6,12 +6,19 @@ import { Camera, Shield, Image, RefreshCw, Sparkle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 // import { Client } from "@gradio/client"; // Use dynamic import instead
 
-// Add interface at the top of the file
+// Add interfaces at the top of the file
 interface ColorProfileResult {
   skin_tone_type: string;
   profile_color: string;
   matched_color: string;
   color_values: number[];
+}
+
+interface SkinAnalysisResult {
+  monk_skin_tone: string;
+  monk_hex: string;
+  derived_hex_code: string;
+  dominant_rgb?: number[];
 }
 
 const DemoProcess = () => {
@@ -20,6 +27,8 @@ const DemoProcess = () => {
   const [colorProfileResult, setColorProfileResult] = useState<ColorProfileResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+const [skinAnalysisResult, setSkinAnalysisResult] = useState<SkinAnalysisResult | null>(null);
+
   const analyzeSkinColor = async (imageBlob: Blob) => {
     try {
       console.log("Analyzing skin tone from image blob", {
@@ -124,13 +133,13 @@ const DemoProcess = () => {
         <div className="max-w-6xl mx-auto px-4 py-16">
           <div className="text-center mb-16 animate-fadeIn">
             <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              Find Your Perfect 
+              Discover Your Perfect 
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-                {" "}Color Match
+                {" "}Colors
               </span>
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Our AI-powered tool analyzes your skin tone to create your personalized color palette
+              Upload your photo and get personalized color recommendations that make you look amazing
             </p>
           </div>
 

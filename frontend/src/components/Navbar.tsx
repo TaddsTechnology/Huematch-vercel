@@ -27,7 +27,7 @@ const Navbar = () => {
     { name: 'Resources', path: '/resources', icon: <BookOpen className="w-4 h-4 mr-1" /> },
     { name: 'Blog', path: '/blog', icon: <BookOpen className="w-4 h-4 mr-1" /> },
     { name: 'About', path: '/about', icon: <Users className="w-4 h-4 mr-1" /> },
-    { name: 'Demo', path: '/demo', icon: <Camera className="w-4 h-4 mr-1" /> },
+    { name: 'Find Your Colors', path: '/demo', icon: <Camera className="w-4 h-4 mr-1" /> },
     { name: 'Contact', path: '/contact', icon: <MessageSquare className="w-4 h-4 mr-1" /> },
   ];
 

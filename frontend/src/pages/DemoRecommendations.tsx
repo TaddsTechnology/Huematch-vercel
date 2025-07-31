@@ -372,51 +372,131 @@ const DemoRecommendations = () => {
     }
   }, []);
   
-  // Function to determine the closest Monk skin tone based on hex color
+  // Enhanced function to determine the closest Monk skin tone with improved light skin detection
   const determineMonkSkinTone = (hexColor: string): string => {
     // Remove the # if present
     const hex = hexColor.startsWith('#') ? hexColor.substring(1) : hexColor;
     
-    // Define the Monk skin tone hex values
+    // Define the Monk skin tone hex values with enhanced calibration
     const monkHexValues = [
-      { id: 'Monk01', hex: 'f6ede4' },
-      { id: 'Monk02', hex: 'f3e7db' },
-      { id: 'Monk03', hex: 'f7ead0' },
-      { id: 'Monk04', hex: 'eadaba' },
-      { id: 'Monk05', hex: 'd7bd96' },
-      { id: 'Monk06', hex: 'a07e56' },
-      { id: 'Monk07', hex: '825c43' },
-      { id: 'Monk08', hex: '604134' },
-      { id: 'Monk09', hex: '3a312a' },
-      { id: 'Monk10', hex: '292420' }
+      { id: 'Monk01', hex: 'f6ede4', name: 'Monk 1' },
+      { id: 'Monk02', hex: 'f3e7db', name: 'Monk 2' },
+      { id: 'Monk03', hex: 'f7ead0', name: 'Monk 3' },
+      { id: 'Monk04', hex: 'eadaba', name: 'Monk 4' },
+      { id: 'Monk05', hex: 'd7bd96', name: 'Monk 5' },
+      { id: 'Monk06', hex: 'a07e56', name: 'Monk 6' },
+      { id: 'Monk07', hex: '825c43', name: 'Monk 7' },
+      { id: 'Monk08', hex: '604134', name: 'Monk 8' },
+      { id: 'Monk09', hex: '3a312a', name: 'Monk 9' },
+      { id: 'Monk10', hex: '292420', name: 'Monk 10' }
     ];
     
     // Convert hex to RGB
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
+    const inputColor = [r, g, b];
     
-    // Find the closest match
-    let closestMatch = monkHexValues[0];
+    console.log(`Enhanced Monk detection: Input color RGB(${r}, ${g}, ${b}) from hex ${hexColor}`);
+    
+    // Calculate brightness and color characteristics
+    const avgBrightness = (r + g + b) / 3;
+    const maxChannel = Math.max(r, g, b);
+    const minChannel = Math.min(r, g, b);
+    const colorRange = maxChannel - minChannel;
+    
+    console.log(`Brightness analysis: avg=${avgBrightness.toFixed(1)}, max=${maxChannel}, min=${minChannel}, range=${colorRange}`);
+    
+    // PRE-CLASSIFICATION: Use brightness to narrow down candidates (matching backend logic)
+    let candidateMonks: typeof monkHexValues = [];
+    
+    if (avgBrightness >= 220) {  // Very light skin - Fair complexion
+      candidateMonks = monkHexValues.filter(m => ['Monk01', 'Monk02'].includes(m.id));
+      console.log(`Very light skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 1-2`);
+    } else if (avgBrightness >= 190) {  // Light skin
+      candidateMonks = monkHexValues.filter(m => ['Monk01', 'Monk02', 'Monk03'].includes(m.id));
+      console.log(`Light skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 1-3`);
+    } else if (avgBrightness >= 150) {  // Light-medium skin
+      candidateMonks = monkHexValues.filter(m => ['Monk02', 'Monk03', 'Monk04', 'Monk05'].includes(m.id));
+      console.log(`Light-medium skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 2-5`);
+    } else if (avgBrightness >= 120) {  // Medium skin
+      candidateMonks = monkHexValues.filter(m => ['Monk04', 'Monk05', 'Monk06'].includes(m.id));
+      console.log(`Medium skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 4-6`);
+    } else if (avgBrightness >= 90) {   // Medium-dark skin
+      candidateMonks = monkHexValues.filter(m => ['Monk05', 'Monk06', 'Monk07', 'Monk08'].includes(m.id));
+      console.log(`Medium-dark skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 5-8`);
+    } else if (avgBrightness >= 60) {   // Dark skin
+      candidateMonks = monkHexValues.filter(m => ['Monk07', 'Monk08', 'Monk09'].includes(m.id));
+      console.log(`Dark skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 7-9`);
+    } else {  // Very dark skin
+      candidateMonks = monkHexValues.filter(m => ['Monk08', 'Monk09', 'Monk10'].includes(m.id));
+      console.log(`Very dark skin detected (brightness=${avgBrightness.toFixed(1)}), limiting to Monk 8-10`);
+    }
+    
+    // Find the closest match among candidates using enhanced algorithm
     let minDistance = Number.MAX_VALUE;
+    let closestMatch = candidateMonks[0] || monkHexValues[4]; // Default to Monk05 if no candidates
     
-    monkHexValues.forEach(monk => {
+    candidateMonks.forEach(monk => {
       const mr = parseInt(monk.hex.substring(0, 2), 16);
       const mg = parseInt(monk.hex.substring(2, 4), 16);
       const mb = parseInt(monk.hex.substring(4, 6), 16);
+      const monkColor = [mr, mg, mb];
       
-      // Calculate Euclidean distance in RGB space
-      const distance = Math.sqrt(
+      // Multi-factor distance calculation (matching backend logic)
+      // 1. Euclidean distance in RGB space
+      const euclideanDistance = Math.sqrt(
         Math.pow(r - mr, 2) + 
         Math.pow(g - mg, 2) + 
         Math.pow(b - mb, 2)
       );
+      
+      // 2. Brightness difference
+      const monkBrightness = (mr + mg + mb) / 3;
+      const brightnessDiff = Math.abs(avgBrightness - monkBrightness);
+      
+      // 3. Color saturation difference
+      const inputSaturation = maxChannel > 0 ? colorRange / maxChannel : 0;
+      const monkMaxChannel = Math.max(mr, mg, mb);
+      const monkMinChannel = Math.min(mr, mg, mb);
+      const monkSaturation = monkMaxChannel > 0 ? (monkMaxChannel - monkMinChannel) / monkMaxChannel : 0;
+      const saturationDiff = Math.abs(inputSaturation - monkSaturation);
+      
+      // 4. Weighted combination optimized for each brightness range
+      let distance: number;
+      if (avgBrightness >= 190) {  // Light skin - prioritize brightness matching
+        distance = euclideanDistance * 0.4 + brightnessDiff * 3.0 + saturationDiff * 10;
+      } else if (avgBrightness >= 120) {  // Medium skin - balanced approach
+        distance = euclideanDistance * 0.6 + brightnessDiff * 1.5 + saturationDiff * 15;
+      } else {  // Dark skin - prioritize overall color matching
+        distance = euclideanDistance * 0.7 + brightnessDiff * 2.0 + saturationDiff * 20;
+      }
+      
+      console.log(`${monk.name}: euclidean=${euclideanDistance.toFixed(2)}, brightness_diff=${brightnessDiff.toFixed(2)}, sat_diff=${saturationDiff.toFixed(3)}, total=${distance.toFixed(2)}`);
       
       if (distance < minDistance) {
         minDistance = distance;
         closestMatch = monk;
       }
     });
+    
+    // Safety fallback if no candidate was selected
+    if (!closestMatch) {
+      console.warn('No candidate selected, using brightness-based fallback');
+      if (avgBrightness >= 190) {
+        closestMatch = monkHexValues.find(m => m.id === 'Monk01') || monkHexValues[0];
+      } else if (avgBrightness >= 150) {
+        closestMatch = monkHexValues.find(m => m.id === 'Monk03') || monkHexValues[2];
+      } else if (avgBrightness >= 120) {
+        closestMatch = monkHexValues.find(m => m.id === 'Monk05') || monkHexValues[4];
+      } else if (avgBrightness >= 90) {
+        closestMatch = monkHexValues.find(m => m.id === 'Monk07') || monkHexValues[6];
+      } else {
+        closestMatch = monkHexValues.find(m => m.id === 'Monk09') || monkHexValues[8];
+      }
+    }
+    
+    console.log(`Final selection: ${closestMatch.id} (${closestMatch.name}) with distance ${minDistance.toFixed(2)}`);
     
     return closestMatch.id;
   };
@@ -592,10 +672,10 @@ const DemoRecommendations = () => {
                 </div>
               )}
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Your Perfect Beauty Match
+                Your Perfect Style Match
               </h1>
               <p className="mt-4 text-xl text-white max-w-2xl mx-auto">
-                We've curated these products specifically for your skin tone
+                Discover colors and styles that enhance your natural beauty
               </p>
             </div>
           </div>

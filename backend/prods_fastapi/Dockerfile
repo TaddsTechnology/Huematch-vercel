@@ -11,10 +11,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for Dlib and OpenCV
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    make \
+    cmake \
+    build-essential \
+    pkg-config \
+    libx11-dev \
+    libatlas-base-dev \
+    libgtk-3-dev \
+    libboost-python-dev \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
@@ -22,8 +30,8 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     libfontconfig1 \
-    libgtk-3-0 \
     curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
