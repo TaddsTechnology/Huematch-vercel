@@ -8,6 +8,8 @@ from PIL import Image
 import io
 from webcolors import hex_to_rgb, rgb_to_hex
 import logging
+import mediapipe as mp
+import dlib
 from enhanced_skin_tone_analyzer import EnhancedSkinToneAnalyzer
 
 # Configure logging
@@ -165,28 +167,28 @@ def analyze_skin_tone_enhanced(image_array: np.ndarray) -> Dict:
     try:
         logger.info("Starting enhanced skin tone analysis...")
 
-# Step 1: Detect face using MediaPipe
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+        # Step 1: Detect face using dlib
+        detector = dlib.get_frontal_face_detector()
+        predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
-# Detect faces in the image
-faces = detector(image_array)
+        # Detect faces in the image
+        faces = detector(image_array)
 
-# If no face is detected
-if len(faces) == 0:
-    raise ValueError("No face detected in the image.")
+        # If no face is detected
+        if len(faces) == 0:
+            raise ValueError("No face detected in the image.")
 
-# Iterate over faces and use landmarks
-for face in faces:
-    landmarks = predictor(image_array, face)
-    x = landmarks.part(0).x
-    y = landmarks.part(21).y
-    w = landmarks.part(16).x - x
-    h = landmarks.part(8).y - y
-    face_image = image_array[y:y+h, x:x+w]
+        # Iterate over faces and use landmarks
+        for face in faces:
+            landmarks = predictor(image_array, face)
+            x = landmarks.part(0).x
+            y = landmarks.part(21).y
+            w = landmarks.part(16).x - x
+            h = landmarks.part(8).y - y
+            face_image = image_array[y:y+h, x:x+w]
 
-        # Step 2: Apply lighting correction
-        corrected_image = apply_lighting_correction(face_image)
+            # Step 2: Apply lighting correction
+            corrected_image = apply_lighting_correction(face_image)
 
         # Step 2: Extract colors from multiple regions
         region_colors = extract_multi_region_colors(corrected_image)
@@ -266,8 +268,6 @@ def health_check():
 async def analyze_skin_tone(file: UploadFile = File(...)):
     """Analyze skin tone from uploaded image."""
     try:
-import mediapipe as mp
-import dlib
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
 
