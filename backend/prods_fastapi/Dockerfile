@@ -32,6 +32,8 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     curl \
     wget \
+    unzip \
+    bzip2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
@@ -40,6 +42,11 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
+
+# Download dlib shape predictor model
+RUN wget -O shape_predictor_68_face_landmarks.dat.bz2 \
+    http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 && \
+    bunzip2 shape_predictor_68_face_landmarks.dat.bz2
 
 # Copy application code
 COPY . .
