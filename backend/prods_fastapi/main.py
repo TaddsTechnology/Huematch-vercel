@@ -9,7 +9,9 @@ import io
 from webcolors import hex_to_rgb, rgb_to_hex
 import logging
 import mediapipe as mp
-import dlib
+# import dlib  # Removed to avoid compilation issues
+# face_recognition also removed to avoid dlib compilation issues
+# Using MediaPipe and OpenCV for face detection instead
 from enhanced_skin_tone_analyzer import EnhancedSkinToneAnalyzer
 
 # Configure logging
@@ -162,96 +164,7 @@ def find_closest_monk_tone_enhanced(rgb_color: np.ndarray) -> tuple:
     return closest_monk, min_distance
 
 
-def analyze_skin_tone_enhanced(image_array: np.ndarray) -> Dict:
-    """Enhanced skin tone analysis with LAB color space, CLAHE, multi-region analysis, and confidence scoring."""
-    try:
-        logger.info("Starting enhanced skin tone analysis...")
-
-        # Step 1: Detect face using dlib
-        detector = dlib.get_frontal_face_detector()
-        predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
-
-        # Detect faces in the image
-        faces = detector(image_array)
-
-        # If no face is detected
-        if len(faces) == 0:
-            raise ValueError("No face detected in the image.")
-
-        # Iterate over faces and use landmarks
-        for face in faces:
-            landmarks = predictor(image_array, face)
-            x = landmarks.part(0).x
-            y = landmarks.part(21).y
-            w = landmarks.part(16).x - x
-            h = landmarks.part(8).y - y
-            face_image = image_array[y:y+h, x:x+w]
-
-            # Step 2: Apply lighting correction
-            corrected_image = apply_lighting_correction(face_image)
-
-        # Step 2: Extract colors from multiple regions
-        region_colors = extract_multi_region_colors(corrected_image)
-
-        if not region_colors:
-            # Fallback to center region if no regions found
-            h, w = corrected_image.shape[:2]
-            center_region = corrected_image[h//4:3*h//4, w//4:3*w//4]
-            avg_color = np.mean(center_region.reshape(-1, 3), axis=0)
-        else:
-            # Step 3: Calculate weighted average of region colors
-            region_colors_array = np.array(region_colors)
-
-            # Weight regions by brightness for light skin detection
-            brightness_weights = np.mean(region_colors_array, axis=1)
-
-            # Normalize weights
-            if np.sum(brightness_weights) > 0:
-                brightness_weights = brightness_weights / np.sum(brightness_weights)
-                avg_color = np.average(region_colors_array, axis=0, weights=brightness_weights)
-            else:
-                avg_color = np.mean(region_colors_array, axis=0)
-
-        # Step 4: Convert to LAB color space for final analysis
-        lab_color = cv2.cvtColor(np.uint8([[avg_color]]), cv2.COLOR_RGB2LAB)[0][0]
-
-        # Step 5: Find closest Monk tone with enhanced algorithm
-        closest_monk, min_distance = find_closest_monk_tone_enhanced(avg_color)
-
-        # Step 6: Calculate confidence score
-        confidence = calculate_confidence_score(image_array, avg_color, min_distance)
-
-        # Format response
-        monk_number = closest_monk.split()[1]
-        monk_id = f"Monk{monk_number.zfill(2)}"
-        derived_hex = rgb_to_hex((int(avg_color[0]), int(avg_color[1]), int(avg_color[2])))
-
-        logger.info(f"Enhanced analysis result: {monk_id}, confidence: {confidence:.2f}")
-
-        return {
-            'monk_skin_tone': monk_id,
-            'monk_tone_display': closest_monk,
-            'monk_hex': MONK_SKIN_TONES[closest_monk],
-            'derived_hex_code': derived_hex,
-            'dominant_rgb': avg_color.astype(int).tolist(),
-            'confidence': round(confidence, 2),
-            'success': True,
-            'analysis_method': 'enhanced_lab_clahe_multi_region',
-            'regions_analyzed': len(region_colors) if region_colors else 1
-        }
-
-    except Exception as e:
-        logger.error(f"Error in enhanced skin tone analysis: {e}")
-        return {
-            'monk_skin_tone': 'Monk02',
-            'monk_tone_display': 'Monk 2',
-            'monk_hex': MONK_SKIN_TONES['Monk 2'],
-            'derived_hex_code': '#f3e7db',
-            'dominant_rgb': [243, 231, 219],
-            'confidence': 0.3,
-            'success': False,
-            'error': str(e)
-        }
+# Old dlib-based function removed - now using enhanced_analyzer
 
 
 @app.get("/")
@@ -316,4 +229,6 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -6,12 +6,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    MPLCONFIGDIR=/tmp/matplotlib \
+    FONTCONFIG_PATH=/tmp/fontconfig \
+    FONTCONFIG_FILE=/tmp/fontconfig/fonts.conf \
+    XDG_CACHE_HOME=/tmp \
+    PORT=8000
 
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies for Dlib and OpenCV
+# Install system dependencies for OpenCV and other packages
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -43,16 +48,11 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Download dlib shape predictor model
-RUN wget -O shape_predictor_68_face_landmarks.dat.bz2 \
-    http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 && \
-    bunzip2 shape_predictor_68_face_landmarks.dat.bz2
-
 # Copy application code
 COPY . .
 
 # Create directories for data and logs
-RUN mkdir -p /app/logs /app/data
+RUN mkdir -p /app/logs /app/data /tmp/fontconfig
 
 # Set proper permissions
 RUN chmod -R 755 /app
@@ -70,4 +70,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

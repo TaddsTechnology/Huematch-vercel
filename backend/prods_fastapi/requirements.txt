@@ -37,8 +37,8 @@ psutil==7.0.0
 opencv-python-headless==4.8.1.78
 imageio==2.31.6
 mediapipe==0.10.7
-# Use pre-compiled dlib binary
-dlib==19.24.2
+# Face detection alternatives - using MediaPipe (already used) and OpenCV
+# No face-recognition to avoid dlib compilation issues
 
 # CDN and file handling
 boto3==1.34.0

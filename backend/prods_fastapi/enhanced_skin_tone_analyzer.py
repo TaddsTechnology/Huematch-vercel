@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+# Removed face_recognition to avoid compilation issues
+# Using MediaPipe and OpenCV for face detection instead
 try:
     import dlib
     DLIB_AVAILABLE = True
@@ -21,7 +23,11 @@ class EnhancedSkinToneAnalyzer:
         self.mp_face_detection = mp.solutions.face_detection
         self.mp_face_mesh = mp.solutions.face_mesh
         
-# Dlib face detection (fallback)
+        # Face recognition library removed to avoid compilation issues
+        self.face_recognition_available = False
+        logger.info("Face recognition library not used - using MediaPipe and OpenCV instead")
+        
+        # Dlib face detection (fallback)
         if DLIB_AVAILABLE:
             self.dlib_detector = dlib.get_frontal_face_detector()
             
@@ -33,12 +39,12 @@ class EnhancedSkinToneAnalyzer:
             except Exception as e:
                 self.dlib_predictor = None
                 self.dlib_available = False
-                logger.warning(f"Dlib shape predictor not available: {e}, using MediaPipe only")
+                logger.warning(f"Dlib shape predictor not available: {e}, using other methods")
         else:
             self.dlib_detector = None
             self.dlib_predictor = None
             self.dlib_available = False
-            logger.info("Dlib not installed, using MediaPipe only for face detection")
+            logger.info("Dlib not installed, using other methods for face detection")
     
     def detect_face_mediapipe(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
         """Detect face using MediaPipe and return bounding box."""
@@ -99,9 +105,43 @@ class EnhancedSkinToneAnalyzer:
         
         return None
     
+    def detect_face_recognition(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+        """Detect face using face_recognition library and return bounding box."""
+        if not self.face_recognition_available:
+            return None
+            
+        try:
+            # Convert BGR to RGB for face_recognition
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            
+            # Find face locations
+            face_locations = face_recognition.face_locations(rgb_image, model="hog")
+            
+            if face_locations:
+                # Use first face (format: top, right, bottom, left)
+                top, right, bottom, left = face_locations[0]
+                
+                # Convert to x, y, w, h format
+                x, y = left, top
+                w, h = right - left, bottom - top
+                
+                # Add padding for better skin region
+                padding = 0.1
+                x = max(0, int(x - w * padding))
+                y = max(0, int(y - h * padding))
+                w = min(image.shape[1] - x, int(w * (1 + 2 * padding)))
+                h = min(image.shape[0] - y, int(h * (1 + 2 * padding)))
+                
+                return (x, y, w, h)
+                
+        except Exception as e:
+            logger.warning(f"Face recognition detection failed: {e}")
+        
+        return None
+    
     def detect_face(self, image: np.ndarray) -> Optional[np.ndarray]:
         """Detect face using multiple methods and return face region."""
-        # Try MediaPipe first
+        # Try MediaPipe first (most reliable and no compilation issues)
         bbox = self.detect_face_mediapipe(image)
         
         # Fallback to Dlib
@@ -302,19 +342,19 @@ class EnhancedSkinToneAnalyzer:
                 monk_brightness = np.mean(monk_rgb)
                 brightness_diff = abs(avg_brightness - monk_brightness)
                 
-                # Apply fair skin bias - prefer lighter tones if detected color is very bright
-                if avg_brightness > 210:  # Very fair skin
-                    # Heavily penalize darker tones for very fair skin
-                    if monk_brightness < 180:
-                        brightness_penalty = brightness_diff * 2.0
+# Apply fair skin bias - prefer lighter tones if detected color is very bright
+                if avg_brightness > 200:  # More sensitive for fair skin
+                    # Adjust penalty logic for lighter preferences
+                    if monk_brightness < 190:
+                        brightness_penalty = brightness_diff * 1.8  # Adjusted factor
                     else:
-                        brightness_penalty = brightness_diff * 0.5
+                        brightness_penalty = brightness_diff * 0.4  # Reduced factor
                     
                     combined_distance = (
-                        rgb_distance * 0.3 +
-                        lab_distance * 0.3 +
-                        hue_distance * 0.1 +
-                        brightness_penalty * 0.3
+                        rgb_distance * 0.25 +
+                        lab_distance * 0.25 +
+                        hue_distance * 0.05 +  # Less impact of hue
+                        brightness_penalty * 0.45  # Greater emphasis
                     )
                 elif avg_brightness > 180:  # Fair skin
                     combined_distance = (
