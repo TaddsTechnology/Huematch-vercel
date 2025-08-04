@@ -13,6 +13,9 @@ from sklearn.cluster import KMeans
 from scipy import stats
 import logging
 from typing import List, Dict, Tuple, Optional
+from scipy.spatial.distance import euclidean
+from sklearn.preprocessing import normalize
+import colorsys
 
 logger = logging.getLogger(__name__)
 
@@ -303,19 +306,69 @@ class EnhancedSkinToneAnalyzer:
             logger.warning(f"Confidence calculation failed: {e}")
             return 0.5
     
+    def advanced_skin_tone_classification(self, rgb_color: np.ndarray) -> Tuple[str, float]:
+        """Advanced statistical skin tone classification using research-based thresholds."""
+        try:
+            r, g, b = rgb_color
+            
+            # Convert to other color spaces for analysis
+            hsv = colorsys.rgb_to_hsv(r/255.0, g/255.0, b/255.0)
+            h, s, v = hsv[0] * 360, hsv[1] * 100, hsv[2] * 100
+            
+            # Calculate Individual Typology Angle (ITA) - scientific measure
+            lab = cv2.cvtColor(np.uint8([[[r, g, b]]]), cv2.COLOR_RGB2LAB)[0][0]
+            L, a_val, b_val = lab
+            
+            # ITA calculation: arctan((L* - 50) / b*) * 180 / π
+            if b_val != 0:
+                ita = np.arctan((L - 50) / b_val) * 180 / np.pi
+            else:
+                ita = 90 if L > 50 else -90
+            
+            # Research-based ITA thresholds for skin tone classification
+            if ita > 55:  # Very Light
+                return "Monk 1", 0.9
+            elif ita > 41:  # Light
+                return "Monk 2", 0.85
+            elif ita > 28:  # Intermediate
+                return "Monk 3", 0.8
+            elif ita > 10:  # Tan
+                return "Monk 4", 0.75
+            elif ita > -30:  # Brown
+                if L > 65:
+                    return "Monk 5", 0.7
+                elif L > 55:
+                    return "Monk 6", 0.7
+                else:
+                    return "Monk 7", 0.7
+            else:  # Dark
+                if L > 45:
+                    return "Monk 8", 0.65
+                elif L > 35:
+                    return "Monk 9", 0.65
+                else:
+                    return "Monk 10", 0.65
+                    
+        except Exception as e:
+            logger.warning(f"ITA classification failed: {e}")
+            return "Monk 4", 0.5
+    
     def find_closest_monk_tone_advanced(self, rgb_color: np.ndarray, 
                                       monk_tones: Dict[str, str]) -> Tuple[str, float]:
-        """Advanced Monk tone matching using multiple color spaces."""
-        min_distance = float('inf')
-        closest_monk = "Monk 2"
-        
+        """Advanced Monk tone matching using multiple methods."""
         try:
-            # Calculate overall brightness for fair skin bias
+            # Method 1: Statistical ITA-based classification
+            ita_result, ita_confidence = self.advanced_skin_tone_classification(rgb_color)
+            
+            # Method 2: Traditional color space analysis (as fallback)
             avg_brightness = np.mean(rgb_color)
             
             # Convert to multiple color spaces for comparison
             lab_color = cv2.cvtColor(np.uint8([[rgb_color]]), cv2.COLOR_RGB2LAB)[0][0]
             hsv_color = cv2.cvtColor(np.uint8([[rgb_color]]), cv2.COLOR_RGB2HSV)[0][0]
+            
+            min_distance = float('inf')
+            closest_monk = "Monk 2"
             
             for monk_name, hex_color in monk_tones.items():
                 # Convert monk tone to RGB
@@ -342,26 +395,25 @@ class EnhancedSkinToneAnalyzer:
                 monk_brightness = np.mean(monk_rgb)
                 brightness_diff = abs(avg_brightness - monk_brightness)
                 
-# Apply fair skin bias - prefer lighter tones if detected color is very bright
-                if avg_brightness > 200:  # More sensitive for fair skin
-                    # Adjust penalty logic for lighter preferences
+                # Enhanced fair skin bias
+                if avg_brightness > 200:  # Very fair skin
                     if monk_brightness < 190:
-                        brightness_penalty = brightness_diff * 1.8  # Adjusted factor
+                        brightness_penalty = brightness_diff * 2.5
                     else:
-                        brightness_penalty = brightness_diff * 0.4  # Reduced factor
+                        brightness_penalty = brightness_diff * 0.3
                     
                     combined_distance = (
-                        rgb_distance * 0.25 +
-                        lab_distance * 0.25 +
-                        hue_distance * 0.05 +  # Less impact of hue
-                        brightness_penalty * 0.45  # Greater emphasis
+                        rgb_distance * 0.2 +
+                        lab_distance * 0.2 +
+                        hue_distance * 0.05 +
+                        brightness_penalty * 0.55
                     )
                 elif avg_brightness > 180:  # Fair skin
                     combined_distance = (
-                        rgb_distance * 0.4 +
-                        lab_distance * 0.4 +
-                        hue_distance * 0.15 +
-                        brightness_diff * 0.05
+                        rgb_distance * 0.35 +
+                        lab_distance * 0.35 +
+                        hue_distance * 0.1 +
+                        brightness_diff * 0.2
                     )
                 else:  # Standard processing
                     combined_distance = (
@@ -374,10 +426,15 @@ class EnhancedSkinToneAnalyzer:
                     min_distance = combined_distance
                     closest_monk = monk_name
             
+            # Use ITA result if confidence is high and for fair skin tones
+            if ita_confidence > 0.75 and ita_result in ['Monk 1', 'Monk 2', 'Monk 3']:
+                logger.info(f"Using ITA classification: {ita_result} (confidence: {ita_confidence})")
+                return ita_result, min_distance * 0.8  # Boost confidence
+            
             return closest_monk, min_distance
             
         except Exception as e:
-            logger.warning(f"Monk tone matching failed: {e}")
+            logger.warning(f"Advanced Monk tone matching failed: {e}")
             return "Monk 4", 50.0
     
     def analyze_skin_tone(self, image: np.ndarray, monk_tones: Dict[str, str]) -> Dict:
