@@ -43,7 +43,7 @@ services:
 
   # Backend API service
   backend:
-    image: newbie028/ai-fashion-backend:latest
+    image: docker.io/newbie028/ai-fashion-backend:latest
     container_name: ai-fashion-backend
     ports:
       - "8000:8000"
@@ -76,6 +76,14 @@ services:
       - ENABLE_CACHING=true
       - ENABLE_MONITORING=true
       - ENABLE_BACKGROUND_TASKS=true
+      # Cloudinary settings
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      # Sentry settings
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_ENVIRONMENT=production
+      - SENTRY_TRACES_SAMPLE_RATE=1.0
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,7 +100,7 @@ services:
       - ai-fashion-network
 
   frontend:
-    build: ./frontend
+    image: docker.io/newbie028/ai-fashion-frontend:latest
     container_name: ai-fashion-frontend
     ports:
       - "3000:3000"

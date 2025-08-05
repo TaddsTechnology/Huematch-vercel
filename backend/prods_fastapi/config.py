@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     s3_bucket_name: str = ""
     s3_region: str = "us-east-1"
     
+    # Cloudinary settings
+    cloudinary_cloud_name: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    cloudinary_api_key: str = os.getenv("CLOUDINARY_API_KEY", "")
+    cloudinary_api_secret: str = os.getenv("CLOUDINARY_API_SECRET", "")
+    
+    # Sentry settings
+    sentry_dsn: str = os.getenv("SENTRY_DSN", "")
+    sentry_environment: str = os.getenv("SENTRY_ENVIRONMENT", "production")
+    sentry_traces_sample_rate: float = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+    
     # Load balancing settings
     load_balancer_enabled: bool = False
     sticky_sessions: bool = False

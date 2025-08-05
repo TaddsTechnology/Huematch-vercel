@@ -71,3 +71,5 @@ redis==5.0.1
 asyncpg==0.29.0
 psutil==5.9.8
 dramatiq==1.14.2
+cloudinary==1.40.0
+sentry-sdk[fastapi]==1.45.0
