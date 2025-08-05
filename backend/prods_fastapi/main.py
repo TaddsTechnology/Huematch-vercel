@@ -14,6 +14,11 @@ import mediapipe as mp
 # Using MediaPipe and OpenCV for face detection instead
 from enhanced_skin_tone_analyzer import EnhancedSkinToneAnalyzer
 
+# Import services
+from services.cloudinary_service import cloudinary_service
+from services.sentry_service import EnhancedSentryService
+from config import settings
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,6 +32,10 @@ app = FastAPI(
     version="1.0.0",
     description="AI Fashion recommendation system with skin tone analysis"
 )
+
+# Add Sentry middleware for error tracking
+if settings.sentry_dsn:
+    app = EnhancedSentryService.get_middleware(app)
 
 # Configure CORS
 app.add_middleware(
