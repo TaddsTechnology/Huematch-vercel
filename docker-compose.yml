@@ -48,6 +48,7 @@ services:
       - "8000:8000"
     volumes:
       - uploaded_images:/app/uploaded_images
+      - ./backend/prods_fastapi/main.py:/app/prods_fastapi/main.py
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1

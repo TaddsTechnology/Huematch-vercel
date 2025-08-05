@@ -187,6 +187,39 @@ def health_check():
     return {"status": "healthy", "message": "AI Fashion Backend is running"}
 
 
+@app.get("/makeup-types")
+def get_makeup_types():
+    """Get available makeup types."""
+    return {
+        "types": ["Foundation", "Concealer", "Lipstick", "Mascara", "Blush", "Highlighter", "Eyeshadow"]
+    }
+
+
+@app.get("/products")
+def get_products(product_type: str = Query(None), random: bool = Query(False)):
+    """Get H&M style products."""
+    return []
+
+
+@app.get("/color-recommendations")
+def get_color_recommendations(skin_tone: str = Query(None)):
+    """Get color recommendations for skin tone."""
+    # Mock color recommendations - replace with actual database query
+    recommendations = [
+        {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
+        {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
+        {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"},
+        {"hex_code": "#DEB887", "color_name": "Burlywood", "category": "recommended"},
+        {"hex_code": "#D2691E", "color_name": "Chocolate", "category": "recommended"},
+        {"hex_code": "#F4A460", "color_name": "Sandy Brown", "category": "recommended"},
+        {"hex_code": "#DAA520", "color_name": "Goldenrod", "category": "recommended"},
+        {"hex_code": "#B8860B", "color_name": "Dark Goldenrod", "category": "recommended"},
+        {"hex_code": "#FF8C00", "color_name": "Dark Orange", "category": "recommended"},
+        {"hex_code": "#FF7F50", "color_name": "Coral", "category": "recommended"}
+    ]
+    return recommendations
+
+
 @app.post("/analyze-skin-tone")
 async def analyze_skin_tone(file: UploadFile = File(...)):
     """Analyze skin tone from uploaded image."""
