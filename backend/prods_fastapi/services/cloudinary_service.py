@@ -14,7 +14,7 @@ import base64
 from PIL import Image
 import numpy as np
 
-from ..config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

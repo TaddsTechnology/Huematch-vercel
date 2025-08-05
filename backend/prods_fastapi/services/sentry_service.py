@@ -33,7 +33,7 @@ from functools import wraps
 import time
 import asyncio
 
-from ..config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 
