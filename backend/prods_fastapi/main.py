@@ -27,6 +27,18 @@ logger = logging.getLogger(__name__)
 # Initialize enhanced skin tone analyzer
 enhanced_analyzer = EnhancedSkinToneAnalyzer()
 
+# Initialize database on startup
+try:
+    from database import create_tables, init_color_palette_data
+    create_tables()
+    init_color_palette_data()
+    logger.info("Database initialized successfully")
+except Exception as e:
+    logger.warning(f"Database initialization failed: {e}")
+
+# Import color router
+from color_routes import color_router
+
 # Create FastAPI app
 app = FastAPI(
     title="AI Fashion Backend",
@@ -46,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include the color router
+app.include_router(color_router)
 
 # Monk skin tone scale
 MONK_SKIN_TONES = {
@@ -203,21 +218,173 @@ def get_products(product_type: str = Query(None), random: bool = Query(False)):
 
 @app.get("/color-recommendations")
 def get_color_recommendations(skin_tone: str = Query(None)):
-    """Get color recommendations for skin tone."""
-    # Mock color recommendations - replace with actual database query
-    recommendations = [
-        {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
-        {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
-        {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"},
-        {"hex_code": "#DEB887", "color_name": "Burlywood", "category": "recommended"},
-        {"hex_code": "#D2691E", "color_name": "Chocolate", "category": "recommended"},
-        {"hex_code": "#F4A460", "color_name": "Sandy Brown", "category": "recommended"},
-        {"hex_code": "#DAA520", "color_name": "Goldenrod", "category": "recommended"},
-        {"hex_code": "#B8860B", "color_name": "Dark Goldenrod", "category": "recommended"},
-        {"hex_code": "#FF8C00", "color_name": "Dark Orange", "category": "recommended"},
-        {"hex_code": "#FF7F50", "color_name": "Coral", "category": "recommended"}
-    ]
-    return recommendations
+    """Get color recommendations for skin tone based on database."""
+    try:
+        from database import SessionLocal, SkinToneMapping, ColorPalette
+        
+        if not skin_tone:
+            # Return default recommendations if no skin tone provided
+            return [
+                {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
+                {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
+                {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"},
+                {"hex_code": "#DEB887", "color_name": "Burlywood", "category": "recommended"},
+                {"hex_code": "#D2691E", "color_name": "Chocolate", "category": "recommended"}
+            ]
+        
+        db = SessionLocal()
+        try:
+            # First, try to find the seasonal type from monk tone mapping
+            seasonal_type = None
+            
+            # Check if skin_tone is a monk tone (like "Monk 5" or "Monk05")
+            if "monk" in skin_tone.lower():
+                # Normalize monk tone format
+                monk_number = ''.join(filter(str.isdigit, skin_tone))
+                if monk_number:
+                    monk_tone_formatted = f"Monk{monk_number.zfill(2)}"
+                    
+                    # Look up seasonal type for this monk tone
+                    mapping = db.query(SkinToneMapping).filter(
+                        SkinToneMapping.monk_tone == monk_tone_formatted
+                    ).first()
+                    
+                    if mapping:
+                        seasonal_type = mapping.seasonal_type
+            else:
+                # If not a monk tone, assume it's already a seasonal type
+                seasonal_type = skin_tone
+            
+            if not seasonal_type:
+                logger.warning(f"Could not find seasonal type for skin tone: {skin_tone}")
+                # Return default recommendations
+                return [
+                    {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
+                    {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
+                    {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"}
+                ]
+            
+            # Get color palette for this seasonal type
+            palette = db.query(ColorPalette).filter(
+                ColorPalette.skin_tone == seasonal_type
+            ).first()
+            
+            if not palette:
+                logger.warning(f"No color palette found for seasonal type: {seasonal_type}")
+                # Return default recommendations
+                return [
+                    {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
+                    {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"}
+                ]
+            
+            # Format the flattering colors for response
+            recommendations = []
+            if palette.flattering_colors:
+                for color in palette.flattering_colors:
+                    recommendations.append({
+                        "hex_code": color.get("hex", ""),
+                        "color_name": color.get("name", ""),
+                        "category": "recommended"
+                    })
+            
+            logger.info(f"Found {len(recommendations)} color recommendations for skin tone: {skin_tone} (seasonal type: {seasonal_type})")
+            return recommendations
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting color recommendations: {e}")
+        # Return fallback recommendations
+        return [
+            {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
+            {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
+            {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"}
+        ]
+
+
+@app.get("/api/color-palettes-db")
+def get_color_palettes_db(
+    hex_color: str = Query(None),
+    skin_tone: str = Query(None)
+):
+    """Get color palettes from database for specific skin tone."""
+    try:
+        from database import SessionLocal, SkinToneMapping, ColorPalette
+        
+        if not skin_tone:
+            # Return empty palette if no skin tone provided
+            return {
+                "colors": [],
+                "seasonal_type": None,
+                "description": "No skin tone provided"
+            }
+        
+        db = SessionLocal()
+        try:
+            # First, try to find the seasonal type from monk tone mapping
+            seasonal_type = None
+            
+            # Check if skin_tone is a monk tone (like "Monk 5" or "Monk02")
+            if "monk" in skin_tone.lower():
+                # Normalize monk tone format
+                monk_number = ''.join(filter(str.isdigit, skin_tone))
+                if monk_number:
+                    monk_tone_formatted = f"Monk{monk_number.zfill(2)}"
+                    
+                    # Look up seasonal type for this monk tone
+                    mapping = db.query(SkinToneMapping).filter(
+                        SkinToneMapping.monk_tone == monk_tone_formatted
+                    ).first()
+                    
+                    if mapping:
+                        seasonal_type = mapping.seasonal_type
+            else:
+                # If not a monk tone, assume it's already a seasonal type
+                seasonal_type = skin_tone
+            
+            if not seasonal_type:
+                logger.warning(f"Could not find seasonal type for skin tone: {skin_tone}")
+                return {
+                    "colors": [],
+                    "seasonal_type": None,
+                    "description": f"No seasonal type found for {skin_tone}"
+                }
+            
+            # Get color palette for this seasonal type
+            palette = db.query(ColorPalette).filter(
+                ColorPalette.skin_tone == seasonal_type
+            ).first()
+            
+            if not palette:
+                logger.warning(f"No color palette found for seasonal type: {seasonal_type}")
+                return {
+                    "colors": [],
+                    "seasonal_type": seasonal_type,
+                    "description": f"No palette found for {seasonal_type}"
+                }
+            
+            # Format response
+            response = {
+                "colors": palette.flattering_colors or [],
+                "colors_to_avoid": palette.colors_to_avoid or [],
+                "seasonal_type": seasonal_type,
+                "description": palette.description or ""
+            }
+            
+            logger.info(f"Found color palette for skin tone: {skin_tone} (seasonal type: {seasonal_type})")
+            return response
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error getting color palettes from database: {e}")
+        return {
+            "colors": [],
+            "seasonal_type": None,
+            "description": f"Error: {str(e)}"
+        }
 
 
 @app.post("/analyze-skin-tone")

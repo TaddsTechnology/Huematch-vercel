@@ -89,7 +89,7 @@ const DemoRecommendations = () => {
   const [skinAnalysis, setSkinAnalysis] = useState<SkinAnalysisResult | null>(null);
   const [skinHex, setSkinHex] = useState<string>('#d7bd96'); // Default skin hex
   const [monkSkinTone, setMonkSkinTone] = useState<string>('Monk05'); // Default Monk skin tone
-  const [activeTab, setActiveTab] = useState<'makeup' | 'outfit' | 'colors' | 'products'>('makeup');
+  const [activeTab, setActiveTab] = useState<'makeup' | 'outfit' | 'colors'>('makeup');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -218,13 +218,16 @@ const DemoRecommendations = () => {
           }
           
           console.log(`Fetching makeup products with params: ${queryParams.toString()}`);
-          response = await fetch(buildApiUrl(API_ENDPOINTS.MAKEUP_DATA, Object.fromEntries(queryParams)));
-          
-          if (!response.ok) {
-            throw new Error(`Unable to load makeup recommendations: ${response.status} ${response.statusText}`);
-          }
+          // TODO: Temporarily commented out for future re-enable
+          // response = await fetch(buildApiUrl(API_ENDPOINTS.MAKEUP_DATA, Object.fromEntries(queryParams)));
+          // 
+          // if (!response.ok) {
+          //   throw new Error(`Unable to load makeup recommendations: ${response.status} ${response.statusText}`);
+          // }
 
-          const data = await response.json();
+          // const data = await response.json();
+          // Temporary placeholder data for makeup
+          const data = { data: [], total_items: 0, total_pages: 0 };
           transformedProducts = data.data.map((item: ApiProduct) => ({
             id: Math.random(),
             name: item.product_name || item.Product_Name || item.name || '',
@@ -289,13 +292,16 @@ const DemoRecommendations = () => {
           }
           
           console.log(`Fetching outfits with params: ${colorParams.toString()}`);
-          response = await fetch(`http://localhost:8000/apparel?${colorParams.toString()}`);
-          
-          if (!response.ok) {
-            throw new Error(`Unable to load outfit recommendations: ${response.status} ${response.statusText}`);
-          }
+          // TODO: Temporarily commented out for future re-enable
+          // response = await fetch(`http://localhost:8000/apparel?${colorParams.toString()}`);
+          // 
+          // if (!response.ok) {
+          //   throw new Error(`Unable to load outfit recommendations: ${response.status} ${response.statusText}`);
+          // }
 
-          const data = await response.json();
+          // const data = await response.json();
+          // Temporary placeholder data for outfits
+          const data = { data: [], total_items: 0, total_pages: 0 };
           
           if (data.error) {
             throw new Error(data.error);
@@ -683,50 +689,39 @@ const DemoRecommendations = () => {
 
         {/* Tab Navigation */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 mt-8">
-          <div className="flex justify-center space-x-4">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
             <button
               onClick={() => setActiveTab('makeup')}
-              className={`px-6 py-2 rounded-lg flex items-center space-x-2 ${
+              className={`px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 transition-all ${
                 activeTab === 'makeup'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-purple-50'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md'
               }`}
             >
-              <Sparkles className="h-5 w-5" />
-              <span>Makeup</span>
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-sm sm:text-base">Makeup</span>
             </button>
             <button
               onClick={() => setActiveTab('outfit')}
-              className={`px-6 py-2 rounded-lg flex items-center space-x-2 ${
+              className={`px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 transition-all ${
                 activeTab === 'outfit'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-purple-50'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md'
               }`}
             >
-              <Shirt className="h-5 w-5" />
-              <span>Outfits</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`px-6 py-2 rounded-lg flex items-center space-x-2 ${
-                activeTab === 'products'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-purple-50'
-              }`}
-            >
-              <Crown className="h-5 w-5" />
-              <span>Products</span>
+              <Shirt className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-sm sm:text-base">Outfits</span>
             </button>
             <button
               onClick={() => setActiveTab('colors')}
-              className={`px-6 py-2 rounded-lg flex items-center space-x-2 ${
+              className={`px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 transition-all ${
                 activeTab === 'colors'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-purple-50'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md'
               }`}
             >
-              <Palette className="h-5 w-5" />
-              <span>Color Palettes</span>
+              <Palette className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-sm sm:text-base">Color Palettes</span>
             </button>
           </div>
         </div>
@@ -760,25 +755,6 @@ const DemoRecommendations = () => {
                     <div className="flex justify-center items-center space-x-2 text-sm opacity-90">
                       <Crown className="h-4 w-4" />
                       <span>Premium makeup recommendations launching soon</span>
-                    </div>
-                  </div>
-                </div>
-              ) : activeTab === 'products' ? (
-                // Coming Soon banner for products
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl p-8 text-white text-center shadow-xl">
-                  <div className="max-w-2xl mx-auto">
-                    <Crown className="h-16 w-16 mx-auto mb-4 opacity-90" />
-                    <h2 className="text-3xl font-bold mb-4">Premium Products</h2>
-                    <div className="bg-white bg-opacity-20 rounded-lg px-6 py-3 inline-block mb-4">
-                      <span className="text-xl font-semibold">Coming Soon!</span>
-                    </div>
-                    <p className="text-lg mb-6">
-                      We're curating exclusive premium products tailored to your skin tone analysis. 
-                      Get ready for personalized product recommendations from top brands!
-                    </p>
-                    <div className="flex justify-center items-center space-x-2 text-sm opacity-90">
-                      <Sparkles className="h-4 w-4" />
-                      <span>Premium product collection launching soon</span>
                     </div>
                   </div>
                 </div>
