@@ -201,10 +201,25 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
             image = image.convert('RGB')
 
         image_array = np.array(image)
+        
+        # Store image in Cloudinary for ML dataset and user history
+        upload_result = None
+        try:
+            import uuid
+            unique_id = str(uuid.uuid4())[:8]
+            public_id = f"skin_analysis/{unique_id}_{file.filename.replace(' ', '_') if file.filename else 'upload'}"
+            upload_result = cloudinary_service.upload_image(image_data, public_id)
+            logger.info(f"Image stored in Cloudinary: {upload_result.get('public_id') if upload_result else 'Failed'}")
+        except Exception as e:
+            logger.warning(f"Failed to store image in Cloudinary: {e}")
 
         try:
             result = enhanced_analyzer.analyze_skin_tone(image_array, MONK_SKIN_TONES)
             if result['success']:
+                # Add Cloudinary URL to response if upload was successful
+                if upload_result and upload_result.get('success'):
+                    result['cloudinary_url'] = upload_result.get('url')
+                    result['image_public_id'] = upload_result.get('public_id')
                 return result
         except Exception as e:
             logger.warning(f"Enhanced analysis failed: {e}, falling back to simple analysis")

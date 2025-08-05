@@ -180,18 +180,21 @@ class EnhancedSkinToneAnalyzer:
             lab_corrected = cv2.merge([l_corrected, a, b])
             rgb_corrected = cv2.cvtColor(lab_corrected, cv2.COLOR_LAB2RGB)
             
-            # Additional gamma correction based on overall brightness
+            # Adaptive gamma correction based on overall brightness
             gray = cv2.cvtColor(rgb_corrected, cv2.COLOR_RGB2GRAY)
             mean_brightness = np.mean(gray)
             
-            if mean_brightness < 100:  # Dark image
-                gamma = 1.3
-            elif mean_brightness > 180:  # Bright image
-                gamma = 0.85  # Slight subtle correction
-            elif mean_brightness > 220:  # Very bright/fair skin
-                gamma = 0.75  # Enhanced correction for very fair skin
-            else:
-                gamma = 1.0
+            # Improved gamma correction for all skin tones
+            if mean_brightness < 70:  # Very dark image/skin
+                gamma = 1.4  # Brighten significantly for very dark skin
+            elif mean_brightness < 120:  # Dark skin
+                gamma = 1.2  # Moderate brightening for dark skin
+            elif mean_brightness < 160:  # Medium skin
+                gamma = 1.0  # No correction needed
+            elif mean_brightness < 200:  # Light skin
+                gamma = 0.9  # Slight darkening
+            else:  # Very light/fair skin (>200)
+                gamma = 0.8  # More aggressive darkening for overexposed fair skin
             
             if gamma != 1.0:
                 rgb_corrected = np.power(rgb_corrected / 255.0, gamma) * 255.0
