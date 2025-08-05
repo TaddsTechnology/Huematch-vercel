@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 import numpy as np
 import cv2
 import math
@@ -35,7 +36,7 @@ app = FastAPI(
 
 # Add Sentry middleware for error tracking
 if settings.sentry_dsn:
-    app = EnhancedSentryService.get_middleware(app)
+    app.add_middleware(SentryAsgiMiddleware)
 
 # Configure CORS
 app.add_middleware(
