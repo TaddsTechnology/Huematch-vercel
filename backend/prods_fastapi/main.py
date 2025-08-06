@@ -38,6 +38,7 @@ except Exception as e:
 
 # Import color router
 from color_routes import color_router
+from api_color_recommendations import api_color_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -59,8 +60,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the color router
+# Include the color routers
 app.include_router(color_router)
+app.include_router(api_color_router)
 
 # Monk skin tone scale
 MONK_SKIN_TONES = {
