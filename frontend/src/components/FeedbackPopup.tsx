@@ -133,8 +133,8 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
 
   if (showThankYou) {
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center transform animate-pulse">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl w-full p-4 sm:p-8 text-center transform animate-pulse">
           <div className="mb-6">
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center">
               <Heart className="w-10 h-10 text-white animate-bounce" />
@@ -157,31 +157,31 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
   }
 
   return (
-    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className={`bg-white rounded-3xl shadow-2xl w-full max-w-md transform transition-all duration-500 ${isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
+    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 transition-all duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl transform transition-all duration-500 ${isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
         
         {/* Header with Gradient */}
-        <div className={`p-6 bg-gradient-to-r ${currentSlideData.gradient} rounded-t-3xl text-white relative overflow-hidden`}>
+        <div className={`p-4 sm:p-6 bg-gradient-to-r ${currentSlideData.gradient} rounded-t-2xl sm:rounded-t-3xl text-white relative overflow-hidden`}>
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-2 right-2 w-20 h-20 rounded-full border-2 border-white/20"></div>
-            <div className="absolute bottom-2 left-2 w-16 h-16 rounded-full border-2 border-white/20"></div>
-            <div className="absolute top-1/2 left-1/4 w-8 h-8 rounded-full bg-white/10"></div>
+            <div className="absolute top-2 right-2 w-12 h-12 sm:w-20 sm:h-20 rounded-full border-2 border-white/20"></div>
+            <div className="absolute bottom-2 left-2 w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 border-white/20"></div>
+            <div className="absolute top-1/2 left-1/4 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white/10"></div>
           </div>
           
           <div className="relative z-10">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-full">
-                  {currentSlideData.icon}
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-white/20 rounded-full">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6">{currentSlideData.icon}</div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">{currentSlideData.title}</h3>
-                  <p className="text-sm opacity-90">{currentSlideData.subtitle}</p>
+                  <h3 className="text-base sm:text-lg font-bold">{currentSlideData.title}</h3>
+                  <p className="text-xs sm:text-sm opacity-90">{currentSlideData.subtitle}</p>
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                <X className="w-5 h-5" />
+              <button onClick={onClose} className="p-1.5 sm:p-2 hover:bg-white/20 rounded-full transition-colors">
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
             
@@ -192,17 +192,17 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
-            <p className="text-xs opacity-75">{currentSlide + 1} of {slides.length}</p>
+            <p className="text-xs sm:text-sm opacity-75">{currentSlide + 1} of {slides.length}</p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <h4 className="text-xl font-semibold text-gray-800 mb-6 text-center leading-relaxed">
+        <div className="p-4 sm:p-6">
+          <h4 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6 text-center leading-relaxed px-2">
             {currentSlideData.question}
           </h4>
           
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {currentSlideData.options.map((option, index) => {
               const isSelected = answers[currentSlide] === option.value;
               return (
@@ -210,9 +210,9 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
                   key={option.value} 
                   onClick={() => handleAnswerSelect(currentSlide, option.value)}
                   disabled={isAnimating}
-                  className={`w-full text-left p-4 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] border-2 group ${
+                  className={`w-full text-left p-3 sm:p-4 rounded-xl sm:rounded-2xl transition-all duration-300 transform hover:scale-[1.01] sm:hover:scale-[1.02] border-2 group ${
                     isSelected 
-                      ? `bg-gradient-to-r ${currentSlideData.gradient} text-white border-transparent shadow-lg scale-[1.02]` 
+                      ? `bg-gradient-to-r ${currentSlideData.gradient} text-white border-transparent shadow-lg scale-[1.01] sm:scale-[1.02]` 
                       : 'bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
                   } ${isAnimating ? 'pointer-events-none' : ''}`}
                   style={{ 
@@ -220,18 +220,18 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
                     animation: isVisible ? 'slideInUp 0.6s ease-out' : 'none'
                   }}
                 >
-                  <div className="flex items-start gap-4">
-                    <span className="text-3xl flex-shrink-0 transform transition-transform group-hover:scale-110">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <span className="text-2xl sm:text-3xl flex-shrink-0 transform transition-transform group-hover:scale-110">
                       {option.emoji}
                     </span>
-                    <div className="flex-1">
-                      <span className={`font-semibold text-lg block mb-1 ${
+                    <div className="flex-1 min-w-0">
+                      <span className={`font-semibold text-base sm:text-lg block mb-1 leading-tight ${
                         isSelected ? 'text-white' : 'text-gray-800'
                       }`}>
                         {option.text}
                       </span>
                       {option.description && (
-                        <span className={`text-sm ${
+                        <span className={`text-xs sm:text-sm leading-tight ${
                           isSelected ? 'text-white/90' : 'text-gray-500'
                         }`}>
                           {option.description}
@@ -239,7 +239,7 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
                       )}
                     </div>
                     {isSelected && (
-                      <ChevronRight className="w-5 h-5 text-white animate-pulse" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse flex-shrink-0" />
                     )}
                   </div>
                 </button>
@@ -248,27 +248,27 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+          <div className="flex justify-between items-center mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-100">
             <button 
               onClick={goToPreviousSlide}
               disabled={currentSlide === 0 || isAnimating}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all ${
                 currentSlide === 0 
                   ? 'text-gray-400 cursor-not-allowed' 
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
               }`}
             >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back</span>
+              <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Back</span>
             </button>
             
-            <div className="flex space-x-2">
+            <div className="flex space-x-1.5 sm:space-x-2">
               {slides.map((_, index) => (
                 <div 
                   key={index}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all duration-300 ${
                     index === currentSlide 
-                      ? 'bg-purple-500 w-6' 
+                      ? 'bg-purple-500 w-4 sm:w-6' 
                       : index < currentSlide 
                         ? 'bg-purple-300' 
                         : 'bg-gray-200'
@@ -277,13 +277,13 @@ const FeedbackPopup: React.FC<FeedbackPopupProps> = ({ isVisible, onClose, userC
               ))}
             </div>
             
-            <div className="w-16"></div> {/* Spacer for alignment */}
+            <div className="w-8 sm:w-16"></div> {/* Spacer for alignment */}
           </div>
         </div>
       </div>
       
       {/* Custom animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes slideInUp {
           from {
             opacity: 0;

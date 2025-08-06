@@ -70,7 +70,7 @@ class CloudinaryService:
                 "unique_filename": True,
                 "overwrite": False,
                 "quality": "auto:best",
-                "format": "auto",
+                "fetch_format": "auto",
                 "transformation": [
                     {"quality": "auto:best"},
                     {"fetch_format": "auto"}
@@ -154,7 +154,7 @@ class CloudinaryService:
                 "context": context,
                 "resource_type": "image",
                 "quality": "auto:best",
-                "format": "auto"
+                "fetch_format": "auto"
             }
             
             result = cloudinary.uploader.upload(image_data, **upload_options)

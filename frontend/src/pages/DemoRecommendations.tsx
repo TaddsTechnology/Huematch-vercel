@@ -4,7 +4,7 @@ import Layout from '../components/Layout';
 import { Star, Sparkles, Crown, Shirt, Palette } from 'lucide-react';
 import ProductRecommendations from '../components/ProductRecommendations';
 import FeedbackPopup from '../components/FeedbackPopup';
-import { API_ENDPOINTS, buildApiUrl } from '../config/api';
+import { API_BASE_URL, API_ENDPOINTS, buildApiUrl } from '../config/api';
 import { monkSkinTones } from '../lib/data/monkSkinTones';
 
 // Consolidated interfaces
@@ -245,19 +245,20 @@ const DemoRecommendations = () => {
           setTotalPages(data.total_pages || Math.ceil(transformedProducts.length / itemsPerPage));
           
           // Fetch available makeup types for filtering
-          if (Object.keys(availableFilters).length === 0) {
-            try {
-              const typesResponse = await fetch('http://localhost:8000/makeup-types');
-              if (typesResponse.ok) {
-                const typesData = await typesResponse.json();
-                setAvailableFilters({
-                  productType: typesData.types || []
-                });
-              }
-            } catch (err) {
-              console.error('Unable to load makeup categories:', err);
-            }
-          }
+          // TODO: Temporarily disabled for production deployment
+          // if (Object.keys(availableFilters).length === 0) {
+          //   try {
+          //     const typesResponse = await fetch(`${API_BASE_URL}/makeup-types`);
+          //     if (typesResponse.ok) {
+          //       const typesData = await typesResponse.json();
+          //       setAvailableFilters({
+          //         productType: typesData.types || []
+          //       });
+          //     }
+          //   } catch (err) {
+          //     console.error('Unable to load makeup categories:', err);
+          //   }
+          // }
         } else if (activeTab === 'outfit') {
           // For outfit tab, use recommended colors if available
           const colorParams = new URLSearchParams();
@@ -293,7 +294,7 @@ const DemoRecommendations = () => {
           
           console.log(`Fetching outfits with params: ${colorParams.toString()}`);
           // TODO: Temporarily commented out for future re-enable
-          // response = await fetch(`http://localhost:8000/apparel?${colorParams.toString()}`);
+          // response = await fetch(`${API_BASE_URL}/apparel?${colorParams.toString()}`);
           // 
           // if (!response.ok) {
           //   throw new Error(`Unable to load outfit recommendations: ${response.status} ${response.statusText}`);
@@ -660,16 +661,16 @@ const DemoRecommendations = () => {
             sessionId: Date.now().toString() // Simple session ID
           }}
         />
-        {/* Hero Section */}
+        {/* Hero Section - Enhanced Mobile Responsiveness */}
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20">
             <div className="text-center">
               {skinHex && (
-                <div className="flex justify-center mb-6">
-                  <div className="bg-white p-3 rounded-lg shadow-lg">
+                <div className="flex justify-center mb-4 sm:mb-6">
+                  <div className="bg-white p-2 sm:p-3 rounded-lg shadow-lg">
                     <div className="flex items-center space-x-3">
                       <div 
-                        className="w-8 h-8 rounded-full border-2 border-white shadow-lg" 
+                        className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-white shadow-lg" 
                         style={{ backgroundColor: skinHex }}
                         title="Your Skin Tone"
                       />
@@ -677,51 +678,51 @@ const DemoRecommendations = () => {
                   </div>
                 </div>
               )}
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 sm:mb-4 px-2">
                 Your Perfect Style Match
               </h1>
-              <p className="mt-4 text-xl text-white max-w-2xl mx-auto">
+              <p className="mt-2 sm:mt-4 text-base sm:text-lg md:text-xl text-white max-w-2xl mx-auto px-4 leading-relaxed">
                 Discover colors and styles that enhance your natural beauty
               </p>
             </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation - Enhanced Responsive Design */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 mt-8">
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 md:gap-4">
             <button
               onClick={() => setActiveTab('makeup')}
-              className={`px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 transition-all ${
+              className={`px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg flex items-center space-x-2 transition-all text-sm sm:text-base font-medium min-w-0 flex-shrink-0 ${
                 activeTab === 'makeup'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md'
+                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md hover:scale-102'
               }`}
             >
-              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-sm sm:text-base">Makeup</span>
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Makeup</span>
             </button>
             <button
               onClick={() => setActiveTab('outfit')}
-              className={`px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 transition-all ${
+              className={`px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg flex items-center space-x-2 transition-all text-sm sm:text-base font-medium min-w-0 flex-shrink-0 ${
                 activeTab === 'outfit'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md'
+                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md hover:scale-102'
               }`}
             >
-              <Shirt className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-sm sm:text-base">Outfits</span>
+              <Shirt className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Outfits</span>
             </button>
             <button
               onClick={() => setActiveTab('colors')}
-              className={`px-4 sm:px-6 py-2 rounded-lg flex items-center space-x-2 transition-all ${
+              className={`px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg flex items-center space-x-2 transition-all text-sm sm:text-base font-medium min-w-0 flex-shrink-0 ${
                 activeTab === 'colors'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md'
+                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-600 hover:bg-purple-50 hover:shadow-md hover:scale-102'
               }`}
             >
-              <Palette className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-sm sm:text-base">Color Palettes</span>
+              <Palette className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Color Palettes</span>
             </button>
           </div>
         </div>
@@ -783,7 +784,7 @@ const DemoRecommendations = () => {
                   <div className="bg-white rounded-xl p-6 shadow-lg">
                     <h2 className="text-2xl font-bold text-gray-900 mb-4">Your Color Recommendations</h2>
                     <p className="text-gray-600 mb-6">
-                      Based on your skin tone, we've identified personalized color recommendations that will complement your natural complexion.
+                      Based on your skin tone ({monkSkinTone && monkSkinTones[monkSkinTone] ? monkSkinTones[monkSkinTone].userFriendlyName : monkSkinTone}), we've identified personalized color recommendations that will complement your natural complexion.
                     </p>
                     
                     <div className="flex flex-col md:flex-row md:items-center mb-6 gap-4">
@@ -794,14 +795,14 @@ const DemoRecommendations = () => {
                       <div>
                         <h3 className="text-lg font-semibold">Your Skin Tone</h3>
                         <p className="text-gray-500">{skinHex}</p>
-                        {colorRecommendations?.seasonal_type && (
-                          <p className="text-purple-600 font-medium">{colorRecommendations.seasonal_type} Color Type</p>
-                        )}
                         {monkSkinTone && monkSkinTones[monkSkinTone] && (
-                          <div className="text-gray-600 text-sm">
-                            <p className="font-medium">{monkSkinTones[monkSkinTone].userFriendlyName}</p>
+                          <div className="text-gray-600 text-sm mb-2">
+                            <p className="font-medium text-purple-700">{monkSkinTones[monkSkinTone].userFriendlyName}</p>
                             <p className="text-xs text-gray-500">{monkSkinTones[monkSkinTone].seasonalType}</p>
                           </div>
+                        )}
+                        {colorRecommendations?.seasonal_type && (
+                          <p className="text-purple-600 font-medium">{colorRecommendations.seasonal_type} Color Type</p>
                         )}
                       </div>
                     </div>
@@ -823,17 +824,17 @@ const DemoRecommendations = () => {
                             Colors That Suit You
                           </h3>
                           
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
                             {colorRecommendations.colors_that_suit.map((color, index) => (
-                              <div key={`${color.hex}-${color.name}-${index}`} className="bg-gray-50 p-3 rounded-lg hover:shadow-md transition-shadow">
+                              <div key={`${color.hex}-${color.name}-${index}`} className="bg-gray-50 p-2 sm:p-3 rounded-lg hover:shadow-md transition-shadow">
                                 <div 
-                                  className="w-full h-16 rounded-lg shadow-md mb-2"
+                                  className="w-full h-12 sm:h-14 md:h-16 rounded-lg shadow-md mb-2"
                                   style={{ backgroundColor: color.hex }}
                                 />
-                                <span className="text-gray-700 text-sm font-medium block truncate" title={color.name}>
+                                <span className="text-gray-700 text-xs sm:text-sm font-medium block truncate" title={color.name}>
                                   {color.name}
                                 </span>
-                                <span className="text-gray-500 text-xs">{color.hex}</span>
+                                <span className="text-gray-500 text-xs hidden sm:block">{color.hex}</span>
                               </div>
                             ))}
                           </div>
