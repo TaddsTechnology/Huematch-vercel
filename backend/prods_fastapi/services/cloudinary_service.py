@@ -14,7 +14,16 @@ import base64
 from PIL import Image
 import numpy as np
 
-from config import settings
+try:
+    from config import settings
+except ImportError:
+    # Fallback configuration if config module fails
+    import os
+    class FallbackSettings:
+        cloudinary_cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+        cloudinary_api_key = os.getenv("CLOUDINARY_API_KEY", "")
+        cloudinary_api_secret = os.getenv("CLOUDINARY_API_SECRET", "")
+    settings = FallbackSettings()
 
 logger = logging.getLogger(__name__)
 

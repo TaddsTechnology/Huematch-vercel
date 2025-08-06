@@ -60,15 +60,10 @@ class Settings(BaseSettings):
     rate_limit_burst: int = 200
     
     # Security settings
-    cors_origins: List[str] = [
-        "https://*.render.com",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "*"
-    ]
+    cors_origins: str = "https://*.render.com,http://localhost:3000,http://localhost:5173,*"
     cors_allow_credentials: bool = True
-    cors_allow_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    cors_allow_headers: List[str] = ["*"]
+    cors_allow_methods: str = "GET,POST,PUT,DELETE,OPTIONS"
+    cors_allow_headers: str = "*"
     
     # CDN settings
     cdn_enabled: bool = False
@@ -113,6 +108,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

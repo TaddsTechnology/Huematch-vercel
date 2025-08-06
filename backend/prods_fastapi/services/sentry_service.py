@@ -33,7 +33,17 @@ from functools import wraps
 import time
 import asyncio
 
-from config import settings
+try:
+    from config import settings
+except ImportError:
+    # Fallback configuration if config module fails
+    import os
+    class FallbackSettings:
+        sentry_dsn = os.getenv("SENTRY_DSN", "")
+        sentry_environment = os.getenv("SENTRY_ENVIRONMENT", "production")
+        sentry_traces_sample_rate = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+        app_version = os.getenv("APP_VERSION", "1.0.0")
+    settings = FallbackSettings()
 
 logger = logging.getLogger(__name__)
 
