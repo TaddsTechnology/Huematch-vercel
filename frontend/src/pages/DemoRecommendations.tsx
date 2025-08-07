@@ -62,15 +62,19 @@ interface ColorInfo {
 }
 
 interface ColorRecommendations {
-  colors_that_suit: ColorInfo[];
+  colors_that_suit?: ColorInfo[]; // Make optional to handle API variations
+  colors?: ColorInfo[]; // API might return 'colors' instead
+  colors_to_avoid?: ColorInfo[];
   seasonal_type?: string;
   monk_skin_tone?: string;
   message?: string;
+  description?: string;
+  database_source?: boolean; // Flag to indicate if data came from database
 }
 
 interface DatabaseColor {
   hex_code: string;
-  color_name: string;
+  color_name: string | null;
   suitable_skin_tone?: string;
   seasonal_palette?: string;
   category?: string;
@@ -134,70 +138,129 @@ const DemoRecommendations = () => {
     return null;
   };
 
-  // Fetch color recommendations with enhanced error handling and fallbacks
+  // Fetch ALL database colors for the user's skin tone
   useEffect(() => {
     const fetchColorRecommendations = async () => {
       if (activeTab === 'colors' && (skinHex || monkSkinTone)) {
         try {
-          console.log('Fetching color recommendations for:', { skinHex, monkSkinTone });
+          console.log('Fetching ALL database colors for skin tone:', { skinHex, monkSkinTone });
           
-          // Build query parameters
+          // Determine the seasonal type from Monk skin tone
+          const seasonalTypeMap: { [key: string]: string } = {
+            'Monk01': 'Light Spring',
+            'Monk02': 'Light Spring', 
+            'Monk03': 'Clear Spring',
+            'Monk04': 'Warm Spring',
+            'Monk05': 'Soft Autumn',
+            'Monk06': 'Warm Autumn',
+            'Monk07': 'Deep Autumn',
+            'Monk08': 'Deep Winter',
+            'Monk09': 'Cool Winter',
+            'Monk10': 'Clear Winter'
+          };
+          
+          const seasonalType = seasonalTypeMap[monkSkinTone] || 'Universal';
+          console.log('Seasonal type determined:', seasonalType);
+          
+          // Build query parameters to get ALL colors for this skin tone
           const queryParams = new URLSearchParams();
+          queryParams.append('limit', '500'); // Get more colors
+          queryParams.append('skin_tone', seasonalType); // Use seasonal type
           
-          // Add hex color if available (clean format)
-          if (skinHex) {
-            const cleanHex = skinHex.startsWith('#') ? skinHex.substring(1) : skinHex;
-            queryParams.append('hex_color', cleanHex);
-          }
+          console.log('Fetching all colors with params:', Object.fromEntries(queryParams));
           
-          // Add Monk skin tone if available
-          if (monkSkinTone) {
-            queryParams.append('skin_tone', monkSkinTone);
-          }
-          
-          console.log('API request parameters:', Object.fromEntries(queryParams));
-          
-          // Try the color palettes database first (prioritize database over API)
-          let response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(queryParams)));
+          // Fetch all colors from database that match the skin tone
+          let response = await fetch(buildApiUrl(API_ENDPOINTS.ALL_COLORS, Object.fromEntries(queryParams)));
           
           if (response.ok) {
-            const data = await response.json();
-            console.log('Color database response:', data);
-            setColorRecommendations(data);
-            setError(null); // Clear any previous errors
+            const databaseColors = await response.json();
+            console.log(`Fetched ${databaseColors.length} colors from database for ${seasonalType}`);
+            
+            // Transform database colors to color recommendations format
+            const recommendedColors = databaseColors
+              .filter((color: any) => color.category === 'recommended')
+              .map((color: any) => ({
+                name: color.color_name || `Color ${color.hex_code}`,
+                hex: color.hex_code
+              }));
+            
+            const colorsToAvoid = databaseColors
+              .filter((color: any) => color.category === 'avoid')
+              .map((color: any) => ({
+                name: color.color_name || `Color ${color.hex_code}`,
+                hex: color.hex_code
+              }));
+            
+            // Create comprehensive color recommendations from database
+            const transformedData = {
+              colors_that_suit: recommendedColors,
+              colors: recommendedColors,
+              colors_to_avoid: colorsToAvoid,
+              seasonal_type: seasonalType,
+              monk_skin_tone: monkSkinTone,
+              description: `Based on your ${seasonalType} seasonal type and ${monkSkinTone} skin tone, here are all the colors from our database that complement your complexion.`,
+              message: `Showing ${recommendedColors.length} recommended colors and ${colorsToAvoid.length} colors to avoid from our comprehensive database.`,
+              database_source: true // Flag to indicate this came from database
+            };
+            
+            setColorRecommendations(transformedData);
+            setError(null);
           } else {
             console.error('Database color service unavailable:', response.status);
             
-            // Try the recommendations API as fallback
+            // Try the color palettes as fallback
             try {
-              const fallbackResponse = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_RECOMMENDATIONS, Object.fromEntries(queryParams)));
+              const fallbackParams = new URLSearchParams();
+              if (monkSkinTone) {
+                fallbackParams.append('skin_tone', monkSkinTone);
+              }
+              
+              const fallbackResponse = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(fallbackParams)));
               if (fallbackResponse.ok) {
                 const fallbackData = await fallbackResponse.json();
-                console.log('Using API for recommendations:', fallbackData);
-                setColorRecommendations(fallbackData);
+                console.log('Using color palettes fallback:', fallbackData);
+                
+                const transformedFallback = {
+                  colors_that_suit: fallbackData.colors || fallbackData.colors_that_suit || [],
+                  colors: fallbackData.colors || [],
+                  colors_to_avoid: fallbackData.colors_to_avoid || [],
+                  seasonal_type: fallbackData.seasonal_type || seasonalType,
+                  monk_skin_tone: monkSkinTone,
+                  description: fallbackData.description,
+                  message: fallbackData.message || fallbackData.description
+                };
+                
+                setColorRecommendations(transformedFallback);
                 setError(null);
               } else {
-                console.error('API color service unavailable:', fallbackResponse.status);
+                console.error('Color palettes service unavailable:', fallbackResponse.status);
                 // Use local color recommendations as final fallback
-                console.log('Using local color recommendations as final fallback');
-                const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
+                console.log('Using comprehensive local color recommendations');
+                const localRecommendations = getComprehensiveLocalColors(skinHex, monkSkinTone, seasonalType);
                 setColorRecommendations(localRecommendations);
                 setError(null);
               }
             } catch (fallbackError) {
-              console.error('API color service error:', fallbackError);
+              console.error('Fallback API error:', fallbackError);
               // Use local color recommendations as final fallback
-              console.log('Using local color recommendations due to API error');
-              const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
+              console.log('Using comprehensive local color recommendations due to error');
+              const localRecommendations = getComprehensiveLocalColors(skinHex, monkSkinTone, seasonalType);
               setColorRecommendations(localRecommendations);
               setError(null);
             }
           }
         } catch (err) {
-          console.error('Unable to fetch color recommendations:', err);
-          // Use local color recommendations as final fallback on network errors
-          console.log('Using local color recommendations due to network error');
-          const localRecommendations = getLocalColorRecommendations(skinHex, monkSkinTone);
+          console.error('Unable to fetch comprehensive color recommendations:', err);
+          // Use comprehensive local color recommendations as final fallback
+          const seasonalType = {
+            'Monk01': 'Light Spring', 'Monk02': 'Light Spring', 'Monk03': 'Clear Spring',
+            'Monk04': 'Warm Spring', 'Monk05': 'Soft Autumn', 'Monk06': 'Warm Autumn',
+            'Monk07': 'Deep Autumn', 'Monk08': 'Deep Winter', 'Monk09': 'Cool Winter',
+            'Monk10': 'Clear Winter'
+          }[monkSkinTone] || 'Universal';
+          
+          console.log('Using comprehensive local color recommendations due to network error');
+          const localRecommendations = getComprehensiveLocalColors(skinHex, monkSkinTone, seasonalType);
           setColorRecommendations(localRecommendations);
           setError(null);
         }
@@ -552,13 +615,295 @@ const DemoRecommendations = () => {
 
   // Filter colors based on search term
   const filteredDatabaseColors = allDatabaseColors.filter(color => 
-    color.color_name.toLowerCase().includes(colorSearchTerm.toLowerCase()) ||
-    color.hex_code.toLowerCase().includes(colorSearchTerm.toLowerCase()) ||
+    (color.color_name && color.color_name.toLowerCase().includes(colorSearchTerm.toLowerCase())) ||
+    (color.hex_code && color.hex_code.toLowerCase().includes(colorSearchTerm.toLowerCase())) ||
     (color.suitable_skin_tone && color.suitable_skin_tone.toLowerCase().includes(colorSearchTerm.toLowerCase())) ||
     (color.seasonal_palette && color.seasonal_palette.toLowerCase().includes(colorSearchTerm.toLowerCase()))
   );
 
-  // Local color recommendations function as fallback
+  // Comprehensive local color recommendations function as fallback
+  const getComprehensiveLocalColors = (skinHex: string, monkSkinTone: string, seasonalType: string): ColorRecommendations => {
+    // Much more extensive color palettes with 20+ colors per skin tone
+    const comprehensiveColorPalettes: { [key: string]: ColorInfo[] } = {
+      'Monk01': [
+        { name: "Soft White", hex: "#F8F6F0" },
+        { name: "Pearl", hex: "#EAE0C2" },
+        { name: "Ivory", hex: "#FFFFF0" },
+        { name: "Cream", hex: "#FFFDD0" },
+        { name: "Champagne", hex: "#F7E7CE" },
+        { name: "Powder Blue", hex: "#B0E0E6" },
+        { name: "Soft Rose", hex: "#F4A6CD" },
+        { name: "Blush Pink", hex: "#DE9FAC" },
+        { name: "Lavender Gray", hex: "#C4C3D0" },
+        { name: "Periwinkle", hex: "#CCCCFF" },
+        { name: "Mint Green", hex: "#B8E6B8" },
+        { name: "Seafoam", hex: "#93E9BE" },
+        { name: "Sage Green", hex: "#9CAF88" },
+        { name: "Dusty Blue", hex: "#6B8CAE" },
+        { name: "Ice Blue", hex: "#A2C4C9" },
+        { name: "Mauve", hex: "#E0B4D6" },
+        { name: "Lilac", hex: "#DDA0DD" },
+        { name: "Soft Taupe", hex: "#B8A99A" },
+        { name: "Silver Gray", hex: "#B5B5B5" },
+        { name: "Light Coral", hex: "#F08080" },
+        { name: "Peach Blossom", hex: "#FFCBA4" },
+        { name: "Baby Blue", hex: "#89CFF0" },
+        { name: "Rose Quartz", hex: "#F7CAC9" },
+        { name: "Vanilla", hex: "#F3E5AB" }
+      ],
+      'Monk02': [
+        { name: "Soft Pink", hex: "#FFB6C1" },
+        { name: "Rose Quartz", hex: "#F7CAC9" },
+        { name: "Peach", hex: "#FFCBA4" },
+        { name: "Light Coral", hex: "#F08080" },
+        { name: "Salmon Pink", hex: "#FA8072" },
+        { name: "Powder Blue", hex: "#B0E0E6" },
+        { name: "Sky Blue", hex: "#87CEEB" },
+        { name: "Aquamarine", hex: "#7FFFD4" },
+        { name: "Mint Cream", hex: "#F5FFFA" },
+        { name: "Seafoam", hex: "#93E9BE" },
+        { name: "Periwinkle", hex: "#CCCCFF" },
+        { name: "Lavender", hex: "#E6E6FA" },
+        { name: "Lilac", hex: "#DDA0DD" },
+        { name: "Champagne", hex: "#F7E7CE" },
+        { name: "Ivory", hex: "#FFFFF0" },
+        { name: "Lemon Chiffon", hex: "#FFFACD" },
+        { name: "Light Yellow", hex: "#FFFFE0" },
+        { name: "Cream", hex: "#FFFDD0" },
+        { name: "Dove Gray", hex: "#D5D5D5" },
+        { name: "Silver", hex: "#C0C0C0" },
+        { name: "Light Sage", hex: "#C9DFBF" },
+        { name: "Mint", hex: "#98FB98" },
+        { name: "Soft Turquoise", hex: "#40E0D0" },
+        { name: "Pearl White", hex: "#F8F6F0" }
+      ],
+      'Monk03': [
+        { name: "Coral", hex: "#FF7F50" },
+        { name: "Peach", hex: "#FFCBA4" },
+        { name: "Apricot", hex: "#FDD5B1" },
+        { name: "Light Orange", hex: "#FFE4B5" },
+        { name: "Salmon", hex: "#FA8072" },
+        { name: "Turquoise", hex: "#40E0D0" },
+        { name: "Aqua", hex: "#00FFFF" },
+        { name: "Light Teal", hex: "#20B2AA" },
+        { name: "Mint Green", hex: "#98FB98" },
+        { name: "Spring Green", hex: "#00FF7F" },
+        { name: "Yellow Green", hex: "#9ACD32" },
+        { name: "Lime Green", hex: "#32CD32" },
+        { name: "Golden Yellow", hex: "#FFD700" },
+        { name: "Lemon", hex: "#FFF700" },
+        { name: "Bright Yellow", hex: "#FFFF00" },
+        { name: "Rose Gold", hex: "#E8B4A6" },
+        { name: "Light Pink", hex: "#FFB6C1" },
+        { name: "Hot Pink", hex: "#FF69B4" },
+        { name: "Magenta", hex: "#FF00FF" },
+        { name: "Violet", hex: "#EE82EE" },
+        { name: "Light Purple", hex: "#DDA0DD" },
+        { name: "Periwinkle", hex: "#C5C5FF" },
+        { name: "Sky Blue", hex: "#87CEEB" },
+        { name: "Electric Blue", hex: "#7DF9FF" }
+      ],
+      'Monk04': [
+        { name: "Warm Gold", hex: "#FFD700" },
+        { name: "Golden Yellow", hex: "#FFBF00" },
+        { name: "Amber", hex: "#FFBF00" },
+        { name: "Orange", hex: "#FFA500" },
+        { name: "Tangerine", hex: "#FF8C00" },
+        { name: "Coral", hex: "#FF7F50" },
+        { name: "Salmon", hex: "#FA8072" },
+        { name: "Peach", hex: "#FFCBA4" },
+        { name: "Apricot", hex: "#FBCEB1" },
+        { name: "Terracotta", hex: "#E2725B" },
+        { name: "Burnt Orange", hex: "#CC5500" },
+        { name: "Rust", hex: "#B7410E" },
+        { name: "Cinnamon", hex: "#D2691E" },
+        { name: "Sandy Brown", hex: "#F4A460" },
+        { name: "Caramel", hex: "#C68E17" },
+        { name: "Honey", hex: "#FFC30B" },
+        { name: "Olive Green", hex: "#808000" },
+        { name: "Forest Green", hex: "#228B22" },
+        { name: "Moss Green", hex: "#8FBC8F" },
+        { name: "Sage", hex: "#9CAF88" },
+        { name: "Khaki", hex: "#F0E68C" },
+        { name: "Beige", hex: "#F5F5DC" },
+        { name: "Tan", hex: "#D2B48C" },
+        { name: "Warm Brown", hex: "#964B00" }
+      ],
+      'Monk05': [
+        { name: "Teal", hex: "#008080" },
+        { name: "Turquoise", hex: "#40E0D0" },
+        { name: "Jade", hex: "#00A86B" },
+        { name: "Emerald", hex: "#50C878" },
+        { name: "Forest Green", hex: "#228B22" },
+        { name: "Olive", hex: "#808000" },
+        { name: "Sage", hex: "#9CAF88" },
+        { name: "Moss", hex: "#8FBC8F" },
+        { name: "Royal Blue", hex: "#4169E1" },
+        { name: "Navy", hex: "#000080" },
+        { name: "Steel Blue", hex: "#4682B4" },
+        { name: "Slate Blue", hex: "#6A5ACD" },
+        { name: "Purple", hex: "#800080" },
+        { name: "Plum", hex: "#DDA0DD" },
+        { name: "Burgundy", hex: "#800020" },
+        { name: "Wine", hex: "#722F37" },
+        { name: "Crimson", hex: "#DC143C" },
+        { name: "Deep Red", hex: "#8B0000" },
+        { name: "Maroon", hex: "#800000" },
+        { name: "Coral", hex: "#FF7F50" },
+        { name: "Orange Red", hex: "#FF4500" },
+        { name: "Golden Rod", hex: "#DAA520" },
+        { name: "Bronze", hex: "#CD7F32" },
+        { name: "Copper", hex: "#B87333" }
+      ],
+      'Monk06': [
+        { name: "Deep Teal", hex: "#008B8B" },
+        { name: "Hunter Green", hex: "#355E3B" },
+        { name: "Forest Green", hex: "#228B22" },
+        { name: "Pine Green", hex: "#01796F" },
+        { name: "Olive Drab", hex: "#6B8E23" },
+        { name: "Army Green", hex: "#4B5320" },
+        { name: "Bronze", hex: "#CD7F32" },
+        { name: "Copper", hex: "#B87333" },
+        { name: "Rust", hex: "#B7410E" },
+        { name: "Burnt Orange", hex: "#CC5500" },
+        { name: "Terracotta", hex: "#E2725B" },
+        { name: "Sienna", hex: "#A0522D" },
+        { name: "Saddle Brown", hex: "#8B4513" },
+        { name: "Chocolate", hex: "#D2691E" },
+        { name: "Burgundy", hex: "#800020" },
+        { name: "Wine Red", hex: "#722F37" },
+        { name: "Deep Red", hex: "#8B0000" },
+        { name: "Maroon", hex: "#800000" },
+        { name: "Navy Blue", hex: "#000080" },
+        { name: "Midnight Blue", hex: "#191970" },
+        { name: "Royal Blue", hex: "#4169E1" },
+        { name: "Deep Purple", hex: "#663399" },
+        { name: "Eggplant", hex: "#614051" },
+        { name: "Dark Olive", hex: "#556B2F" }
+      ],
+      'Monk07': [
+        { name: "Deep Forest", hex: "#013220" },
+        { name: "Hunter Green", hex: "#355E3B" },
+        { name: "Pine Green", hex: "#01796F" },
+        { name: "Dark Olive", hex: "#556B2F" },
+        { name: "Army Green", hex: "#4B5320" },
+        { name: "Deep Teal", hex: "#003366" },
+        { name: "Midnight Blue", hex: "#191970" },
+        { name: "Navy", hex: "#000080" },
+        { name: "Royal Blue", hex: "#4169E1" },
+        { name: "Steel Blue", hex: "#4682B4" },
+        { name: "Deep Purple", hex: "#301934" },
+        { name: "Eggplant", hex: "#614051" },
+        { name: "Plum", hex: "#8E4585" },
+        { name: "Deep Burgundy", hex: "#722F37" },
+        { name: "Wine", hex: "#722F37" },
+        { name: "Claret", hex: "#7F1734" },
+        { name: "Deep Red", hex: "#8B0000" },
+        { name: "Brick Red", hex: "#CB4154" },
+        { name: "Rust", hex: "#B7410E" },
+        { name: "Burnt Orange", hex: "#CC5500" },
+        { name: "Dark Bronze", hex: "#CD7F32" },
+        { name: "Copper", hex: "#B87333" },
+        { name: "Espresso", hex: "#3C2415" },
+        { name: "Dark Brown", hex: "#654321" }
+      ],
+      'Monk08': [
+        { name: "Electric Pink", hex: "#FF007F" },
+        { name: "Hot Magenta", hex: "#FF1DCE" },
+        { name: "Fuchsia", hex: "#FF00FF" },
+        { name: "Bright Purple", hex: "#8A2BE2" },
+        { name: "Electric Purple", hex: "#BF00FF" },
+        { name: "Royal Purple", hex: "#7851A9" },
+        { name: "Deep Purple", hex: "#663399" },
+        { name: "Indigo", hex: "#4B0082" },
+        { name: "Electric Blue", hex: "#0080FF" },
+        { name: "Royal Blue", hex: "#002FA7" },
+        { name: "Cobalt Blue", hex: "#0047AB" },
+        { name: "Navy", hex: "#000080" },
+        { name: "Midnight Blue", hex: "#191970" },
+        { name: "Deep Teal", hex: "#003366" },
+        { name: "Turquoise", hex: "#40E0D0" },
+        { name: "Jade Green", hex: "#00A86B" },
+        { name: "Emerald", hex: "#50C878" },
+        { name: "Forest Green", hex: "#228B22" },
+        { name: "Fire Red", hex: "#FF2D00" },
+        { name: "Crimson", hex: "#DC143C" },
+        { name: "Ruby Red", hex: "#E0115F" },
+        { name: "Gold", hex: "#FFD700" },
+        { name: "Bright Orange", hex: "#FF8C00" },
+        { name: "Pure White", hex: "#FFFFFF" }
+      ],
+      'Monk09': [
+        { name: "Neon Pink", hex: "#FF6EC7" },
+        { name: "Electric Pink", hex: "#FF007F" },
+        { name: "Hot Magenta", hex: "#FF1DCE" },
+        { name: "Bright Purple", hex: "#8A2BE2" },
+        { name: "Electric Purple", hex: "#BF00FF" },
+        { name: "Royal Purple", hex: "#7851A9" },
+        { name: "Deep Purple", hex: "#663399" },
+        { name: "Electric Blue", hex: "#0080FF" },
+        { name: "Bright Blue", hex: "#0066FF" },
+        { name: "Cobalt", hex: "#0047AB" },
+        { name: "Royal Blue", hex: "#002FA7" },
+        { name: "Navy", hex: "#000080" },
+        { name: "Midnight Blue", hex: "#191970" },
+        { name: "Steel Blue", hex: "#4682B4" },
+        { name: "Turquoise", hex: "#40E0D0" },
+        { name: "Cyan", hex: "#00FFFF" },
+        { name: "Electric Green", hex: "#00FF00" },
+        { name: "Lime Green", hex: "#32CD32" },
+        { name: "Bright Yellow", hex: "#FFFF00" },
+        { name: "Gold", hex: "#FFD700" },
+        { name: "Orange", hex: "#FFA500" },
+        { name: "Red Orange", hex: "#FF4500" },
+        { name: "Fire Red", hex: "#FF2D00" },
+        { name: "Pure White", hex: "#FFFFFF" },
+        { name: "Silver", hex: "#C0C0C0" }
+      ],
+      'Monk10': [
+        { name: "Neon Pink", hex: "#FF6EC7" },
+        { name: "Electric Pink", hex: "#FF007F" },
+        { name: "Hot Magenta", hex: "#FF1DCE" },
+        { name: "Fuchsia", hex: "#FF00FF" },
+        { name: "Electric Purple", hex: "#BF00FF" },
+        { name: "Bright Purple", hex: "#8A2BE2" },
+        { name: "Royal Purple", hex: "#7851A9" },
+        { name: "Electric Blue", hex: "#0080FF" },
+        { name: "Bright Blue", hex: "#0066FF" },
+        { name: "Cobalt Blue", hex: "#0047AB" },
+        { name: "Royal Blue", hex: "#002FA7" },
+        { name: "Electric Green", hex: "#00FF00" },
+        { name: "Lime Green", hex: "#32CD32" },
+        { name: "Spring Green", hex: "#00FF7F" },
+        { name: "Cyan", hex: "#00FFFF" },
+        { name: "Turquoise", hex: "#40E0D0" },
+        { name: "Bright Yellow", hex: "#FFFF00" },
+        { name: "Electric Lime", hex: "#CCFF00" },
+        { name: "Gold", hex: "#FFD700" },
+        { name: "Orange", hex: "#FFA500" },
+        { name: "Bright Orange", hex: "#FF8000" },
+        { name: "Fire Red", hex: "#FF2D00" },
+        { name: "Red", hex: "#FF0000" },
+        { name: "Pure White", hex: "#FFFFFF" },
+        { name: "Snow White", hex: "#FFFAFA" }
+      ]
+    };
+
+    // Get comprehensive colors for the current Monk skin tone, fallback to Monk05 if not found
+    const colors = comprehensiveColorPalettes[monkSkinTone] || comprehensiveColorPalettes['Monk05'] || [];
+
+    return {
+      colors_that_suit: colors,
+      colors: colors,
+      colors_to_avoid: [],
+      seasonal_type: seasonalType,
+      monk_skin_tone: monkSkinTone,
+      message: `Comprehensive color palette for ${seasonalType} seasonal type (${colors.length} colors). These colors are specially curated to complement your ${monkSkinTone} skin tone.`,
+      database_source: false
+    };
+  };
+
+  // Keep original function for backwards compatibility
   const getLocalColorRecommendations = (skinHex: string, monkSkinTone: string): ColorRecommendations => {
     // Enhanced and diverse color palettes based on Monk skin tone with more variety
     const colorPalettes: { [key: string]: ColorInfo[] } = {
@@ -907,33 +1252,102 @@ const DemoRecommendations = () => {
                       </div>
 
                       <div className="space-y-8">
-                        {/* Colors That Flatter You */}
+                        {/* All Colors That Suit Your Skin Tone */}
                         <div>
                           <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                             <Star className="w-5 h-5 text-yellow-500 mr-2" />
-                            Colors That Suit You
+                            All Colors That Suit Your Skin Tone
+                            {colorRecommendations?.colors_that_suit && (
+                              <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                {colorRecommendations.colors_that_suit.length} colors
+                              </span>
+                            )}
                           </h3>
                           
+                          {colorRecommendations?.database_source && (
+                            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-green-700 text-sm flex items-center">
+                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Loaded from our comprehensive color database
+                              </p>
+                            </div>
+                          )}
+                          
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
-                            {colorRecommendations.colors_that_suit.map((color, index) => (
-                              <div key={`${color.hex}-${color.name}-${index}`} className="bg-gray-50 p-2 sm:p-3 rounded-lg hover:shadow-md transition-shadow">
-                                <div 
-                                  className="w-full h-12 sm:h-14 md:h-16 rounded-lg shadow-md mb-2"
-                                  style={{ backgroundColor: color.hex }}
-                                />
-                                <span className="text-gray-700 text-xs sm:text-sm font-medium block truncate" title={color.name}>
-                                  {color.name}
-                                </span>
-                                <span className="text-gray-500 text-xs hidden sm:block">{color.hex}</span>
-                              </div>
-                            ))}
+                            {(() => {
+                              // Handle different API response formats
+                              const colorsToDisplay = colorRecommendations.colors_that_suit || colorRecommendations.colors || [];
+                              
+                              if (colorsToDisplay && colorsToDisplay.length > 0) {
+                                return colorsToDisplay.map((color, index) => (
+                                  <div key={`${color.hex}-${color.name}-${index}`} className="bg-gray-50 p-2 sm:p-3 rounded-lg hover:shadow-md transition-shadow group">
+                                    <div 
+                                      className="w-full h-12 sm:h-14 md:h-16 rounded-lg shadow-md mb-2 group-hover:scale-105 transition-transform"
+                                      style={{ backgroundColor: color.hex }}
+                                      title={`${color.name} - ${color.hex}`}
+                                    />
+                                    <span className="text-gray-700 text-xs sm:text-sm font-medium block truncate" title={color.name}>
+                                      {color.name}
+                                    </span>
+                                    <span className="text-gray-500 text-xs hidden sm:block">{color.hex}</span>
+                                  </div>
+                                ));
+                              } else {
+                                return (
+                                  <div className="col-span-full text-center py-8 text-gray-500">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-600 border-t-transparent mb-4"></div>
+                                    <p>Loading your comprehensive color palette...</p>
+                                  </div>
+                                );
+                              }
+                            })()
+                            }
                           </div>
                         </div>
                         
-                        {/* Message about future updates */}
+                        {/* Colors to Avoid Section - Only show if there are colors to avoid */}
+                        {colorRecommendations?.colors_to_avoid && colorRecommendations.colors_to_avoid.length > 0 && (
+                          <div className="mt-8">
+                            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                              <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 008.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                              </svg>
+                              Colors to Avoid
+                              <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                                {colorRecommendations.colors_to_avoid.length} colors
+                              </span>
+                            </h3>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
+                              {colorRecommendations.colors_to_avoid.map((color, index) => (
+                                <div key={`avoid-${color.hex}-${color.name}-${index}`} className="bg-red-50 p-2 sm:p-3 rounded-lg border border-red-200">
+                                  <div 
+                                    className="w-full h-12 sm:h-14 md:h-16 rounded-lg shadow-md mb-2 relative"
+                                    style={{ backgroundColor: color.hex }}
+                                    title={`${color.name} - ${color.hex} (avoid)`}
+                                  >
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <svg className="w-6 h-6 text-red-600 bg-white rounded-full p-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 008.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                  <span className="text-red-700 text-xs sm:text-sm font-medium block truncate" title={color.name}>
+                                    {color.name}
+                                  </span>
+                                  <span className="text-red-500 text-xs hidden sm:block">{color.hex}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Information Message */}
                         {colorRecommendations.message && (
                           <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-                            <p className="text-purple-700 italic">{colorRecommendations.message}</p>
+                            <p className="text-purple-700">{colorRecommendations.message}</p>
                           </div>
                         )}
                       </div>
@@ -997,8 +1411,8 @@ const DemoRecommendations = () => {
                                 title={`${color.color_name} - ${color.hex_code}`}
                               />
                               <div className="text-center">
-                                <p className="text-gray-700 text-xs font-medium truncate" title={color.color_name}>
-                                  {color.color_name}
+                                <p className="text-gray-700 text-xs font-medium truncate" title={color.color_name || 'Unknown Color'}>
+                                  {color.color_name || 'Unknown Color'}
                                 </p>
                                 <p className="text-gray-400 text-xs truncate">{color.hex_code}</p>
                                 {color.suitable_skin_tone && (
