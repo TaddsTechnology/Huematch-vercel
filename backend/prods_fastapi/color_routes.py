@@ -254,3 +254,109 @@ async def get_all_colors(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching colors: {e}")
 
+# Add a separate router for color palettes
+from fastapi import APIRouter
+palette_router = APIRouter(prefix="/api", tags=["palettes"])
+
+class ColorPaletteResponse(BaseModel):
+    colors_that_suit: List[dict]
+    colors_to_avoid: List[dict] = []
+    seasonal_type: str
+    monk_skin_tone: str
+    message: str
+    database_source: bool = True
+
+@palette_router.get("/color-palettes-db")
+async def get_color_palettes_db(
+    skin_tone: Optional[str] = Query(None, description="Monk skin tone (e.g., Monk05) or seasonal type"),
+    limit: Optional[int] = Query(500, description="Number of colors to return")
+):
+    """Get color palettes from database based on skin tone mapping"""
+    if not skin_tone:
+        raise HTTPException(status_code=400, detail="skin_tone parameter is required")
+    
+    conn = connect_to_db()
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Step 1: Determine seasonal type from Monk tone
+        seasonal_type = skin_tone
+        seasonal_type_map = {
+            'Monk01': 'Light Spring',
+            'Monk02': 'Light Spring', 
+            'Monk03': 'Clear Spring',
+            'Monk04': 'Warm Spring',
+            'Monk05': 'Soft Autumn',
+            'Monk06': 'Warm Autumn',
+            'Monk07': 'Deep Autumn',
+            'Monk08': 'Deep Winter',
+            'Monk09': 'Cool Winter',
+            'Monk10': 'Clear Winter'
+        }
+        
+        if skin_tone in seasonal_type_map:
+            seasonal_type = seasonal_type_map[skin_tone]
+        
+        # Step 2: Get colors from database for this seasonal type
+        query = """
+        SELECT hex_code, color_name, suitable_skin_tone, seasonal_palette, category
+        FROM colors 
+        WHERE (seasonal_palette ILIKE %s OR suitable_skin_tone ILIKE %s)
+        AND category = 'recommended'
+        AND hex_code IS NOT NULL
+        AND color_name IS NOT NULL
+        ORDER BY color_name
+        LIMIT %s;
+        """
+        
+        cursor.execute(query, (f'%{seasonal_type}%', f'%{seasonal_type}%', limit))
+        results = cursor.fetchall()
+        
+        # Format colors for frontend
+        colors_that_suit = []
+        for row in results:
+            colors_that_suit.append({
+                "name": row[1],  # color_name
+                "hex": row[0]   # hex_code
+            })
+        
+        # Step 3: Get colors to avoid
+        avoid_query = """
+        SELECT hex_code, color_name
+        FROM colors 
+        WHERE (seasonal_palette ILIKE %s OR suitable_skin_tone ILIKE %s)
+        AND category = 'avoid'
+        AND hex_code IS NOT NULL
+        AND color_name IS NOT NULL
+        ORDER BY color_name
+        LIMIT 20;
+        """
+        
+        cursor.execute(avoid_query, (f'%{seasonal_type}%', f'%{seasonal_type}%'))
+        avoid_results = cursor.fetchall()
+        
+        colors_to_avoid = []
+        for row in avoid_results:
+            colors_to_avoid.append({
+                "name": row[1],  # color_name
+                "hex": row[0]   # hex_code
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "colors_that_suit": colors_that_suit,
+            "colors": colors_that_suit,  # Alias for compatibility
+            "colors_to_avoid": colors_to_avoid,
+            "seasonal_type": seasonal_type,
+            "monk_skin_tone": skin_tone,
+            "description": f"Based on your {seasonal_type} seasonal type and {skin_tone} skin tone, here are colors from our database that complement your complexion.",
+            "message": f"Showing {len(colors_that_suit)} recommended colors and {len(colors_to_avoid)} colors to avoid from our comprehensive database.",
+            "database_source": True
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching color palettes: {e}")
+

@@ -37,7 +37,7 @@ except Exception as e:
     logger.warning(f"Database initialization failed: {e}")
 
 # Import color router
-from color_routes import color_router
+from color_routes import color_router, palette_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -61,6 +61,7 @@ app.add_middleware(
 
 # Include the color routers
 app.include_router(color_router)
+app.include_router(palette_router)
 
 # Monk skin tone scale - now loaded from database
 def get_monk_skin_tones():

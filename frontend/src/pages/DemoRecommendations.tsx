@@ -108,10 +108,6 @@ const DemoRecommendations = () => {
   const [availableFilters, setAvailableFilters] = useState<{[key: string]: string[]}>({});
   const [selectedFilters, setSelectedFilters] = useState<{[key: string]: string}>({});
   const [colorRecommendations, setColorRecommendations] = useState<ColorRecommendations | null>(null);
-  const [allDatabaseColors, setAllDatabaseColors] = useState<DatabaseColor[]>([]);
-  const [loadingAllColors, setLoadingAllColors] = useState(false);
-  const [showAllColors, setShowAllColors] = useState(false);
-  const [colorSearchTerm, setColorSearchTerm] = useState('');
   const itemsPerPage = 24;
 
   // Handle page changes
@@ -234,24 +230,38 @@ const DemoRecommendations = () => {
                 setError(null);
               } else {
                 console.error('Color palettes service unavailable:', fallbackResponse.status);
-                // Use local color recommendations as final fallback
-                console.log('Using comprehensive local color recommendations');
-                const localRecommendations = getComprehensiveLocalColors(skinHex, monkSkinTone, seasonalType);
-                setColorRecommendations(localRecommendations);
+            // Set empty recommendations when database is not available
+                console.log('Database color service unavailable, setting empty recommendations');
+                setColorRecommendations({
+                  colors_that_suit: [],
+                  colors: [],
+                  colors_to_avoid: [],
+                  seasonal_type: seasonalType,
+                  monk_skin_tone: monkSkinTone,
+                  message: 'Color recommendations are currently unavailable. Please try again later.',
+                  database_source: false
+                });
                 setError(null);
               }
             } catch (fallbackError) {
               console.error('Fallback API error:', fallbackError);
-              // Use local color recommendations as final fallback
-              console.log('Using comprehensive local color recommendations due to error');
-              const localRecommendations = getComprehensiveLocalColors(skinHex, monkSkinTone, seasonalType);
-              setColorRecommendations(localRecommendations);
+              // Set empty recommendations when all services fail
+              console.log('All color services failed, setting empty recommendations');
+              setColorRecommendations({
+                colors_that_suit: [],
+                colors: [],
+                colors_to_avoid: [],
+                seasonal_type: seasonalType,
+                monk_skin_tone: monkSkinTone,
+                message: 'Color recommendations are currently unavailable. Please try again later.',
+                database_source: false
+              });
               setError(null);
             }
           }
         } catch (err) {
           console.error('Unable to fetch comprehensive color recommendations:', err);
-          // Use comprehensive local color recommendations as final fallback
+          // Set empty recommendations when network fails
           const seasonalType = {
             'Monk01': 'Light Spring', 'Monk02': 'Light Spring', 'Monk03': 'Clear Spring',
             'Monk04': 'Warm Spring', 'Monk05': 'Soft Autumn', 'Monk06': 'Warm Autumn',
@@ -259,9 +269,16 @@ const DemoRecommendations = () => {
             'Monk10': 'Clear Winter'
           }[monkSkinTone] || 'Universal';
           
-          console.log('Using comprehensive local color recommendations due to network error');
-          const localRecommendations = getComprehensiveLocalColors(skinHex, monkSkinTone, seasonalType);
-          setColorRecommendations(localRecommendations);
+          console.log('Network error occurred, setting empty recommendations');
+          setColorRecommendations({
+            colors_that_suit: [],
+            colors: [],
+            colors_to_avoid: [],
+            seasonal_type: seasonalType,
+            monk_skin_tone: monkSkinTone,
+            message: 'Unable to load color recommendations due to network error. Please check your connection and try again.',
+            database_source: false
+          });
           setError(null);
         }
       }
@@ -592,496 +609,8 @@ const DemoRecommendations = () => {
     return closestMatch.id;
   };
 
-  // Fetch all colors from database
-  const fetchAllDatabaseColors = async () => {
-    setLoadingAllColors(true);
-    try {
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.ALL_COLORS, { limit: 1500 }));
-      if (response.ok) {
-        const colors = await response.json();
-        console.log(`Fetched ${colors.length} colors from database`);
-        setAllDatabaseColors(colors);
-        setError(null);
-      } else {
-        throw new Error(`Failed to fetch colors: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('Error fetching all colors:', err);
-      setError('Failed to load all colors from database. Please try again later.');
-    } finally {
-      setLoadingAllColors(false);
-    }
-  };
 
-  // Filter colors based on search term
-  const filteredDatabaseColors = allDatabaseColors.filter(color => 
-    (color.color_name && color.color_name.toLowerCase().includes(colorSearchTerm.toLowerCase())) ||
-    (color.hex_code && color.hex_code.toLowerCase().includes(colorSearchTerm.toLowerCase())) ||
-    (color.suitable_skin_tone && color.suitable_skin_tone.toLowerCase().includes(colorSearchTerm.toLowerCase())) ||
-    (color.seasonal_palette && color.seasonal_palette.toLowerCase().includes(colorSearchTerm.toLowerCase()))
-  );
 
-  // Comprehensive local color recommendations function as fallback
-  const getComprehensiveLocalColors = (skinHex: string, monkSkinTone: string, seasonalType: string): ColorRecommendations => {
-    // Much more extensive color palettes with 20+ colors per skin tone
-    const comprehensiveColorPalettes: { [key: string]: ColorInfo[] } = {
-      'Monk01': [
-        { name: "Soft White", hex: "#F8F6F0" },
-        { name: "Pearl", hex: "#EAE0C2" },
-        { name: "Ivory", hex: "#FFFFF0" },
-        { name: "Cream", hex: "#FFFDD0" },
-        { name: "Champagne", hex: "#F7E7CE" },
-        { name: "Powder Blue", hex: "#B0E0E6" },
-        { name: "Soft Rose", hex: "#F4A6CD" },
-        { name: "Blush Pink", hex: "#DE9FAC" },
-        { name: "Lavender Gray", hex: "#C4C3D0" },
-        { name: "Periwinkle", hex: "#CCCCFF" },
-        { name: "Mint Green", hex: "#B8E6B8" },
-        { name: "Seafoam", hex: "#93E9BE" },
-        { name: "Sage Green", hex: "#9CAF88" },
-        { name: "Dusty Blue", hex: "#6B8CAE" },
-        { name: "Ice Blue", hex: "#A2C4C9" },
-        { name: "Mauve", hex: "#E0B4D6" },
-        { name: "Lilac", hex: "#DDA0DD" },
-        { name: "Soft Taupe", hex: "#B8A99A" },
-        { name: "Silver Gray", hex: "#B5B5B5" },
-        { name: "Light Coral", hex: "#F08080" },
-        { name: "Peach Blossom", hex: "#FFCBA4" },
-        { name: "Baby Blue", hex: "#89CFF0" },
-        { name: "Rose Quartz", hex: "#F7CAC9" },
-        { name: "Vanilla", hex: "#F3E5AB" }
-      ],
-      'Monk02': [
-        { name: "Soft Pink", hex: "#FFB6C1" },
-        { name: "Rose Quartz", hex: "#F7CAC9" },
-        { name: "Peach", hex: "#FFCBA4" },
-        { name: "Light Coral", hex: "#F08080" },
-        { name: "Salmon Pink", hex: "#FA8072" },
-        { name: "Powder Blue", hex: "#B0E0E6" },
-        { name: "Sky Blue", hex: "#87CEEB" },
-        { name: "Aquamarine", hex: "#7FFFD4" },
-        { name: "Mint Cream", hex: "#F5FFFA" },
-        { name: "Seafoam", hex: "#93E9BE" },
-        { name: "Periwinkle", hex: "#CCCCFF" },
-        { name: "Lavender", hex: "#E6E6FA" },
-        { name: "Lilac", hex: "#DDA0DD" },
-        { name: "Champagne", hex: "#F7E7CE" },
-        { name: "Ivory", hex: "#FFFFF0" },
-        { name: "Lemon Chiffon", hex: "#FFFACD" },
-        { name: "Light Yellow", hex: "#FFFFE0" },
-        { name: "Cream", hex: "#FFFDD0" },
-        { name: "Dove Gray", hex: "#D5D5D5" },
-        { name: "Silver", hex: "#C0C0C0" },
-        { name: "Light Sage", hex: "#C9DFBF" },
-        { name: "Mint", hex: "#98FB98" },
-        { name: "Soft Turquoise", hex: "#40E0D0" },
-        { name: "Pearl White", hex: "#F8F6F0" }
-      ],
-      'Monk03': [
-        { name: "Coral", hex: "#FF7F50" },
-        { name: "Peach", hex: "#FFCBA4" },
-        { name: "Apricot", hex: "#FDD5B1" },
-        { name: "Light Orange", hex: "#FFE4B5" },
-        { name: "Salmon", hex: "#FA8072" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Aqua", hex: "#00FFFF" },
-        { name: "Light Teal", hex: "#20B2AA" },
-        { name: "Mint Green", hex: "#98FB98" },
-        { name: "Spring Green", hex: "#00FF7F" },
-        { name: "Yellow Green", hex: "#9ACD32" },
-        { name: "Lime Green", hex: "#32CD32" },
-        { name: "Golden Yellow", hex: "#FFD700" },
-        { name: "Lemon", hex: "#FFF700" },
-        { name: "Bright Yellow", hex: "#FFFF00" },
-        { name: "Rose Gold", hex: "#E8B4A6" },
-        { name: "Light Pink", hex: "#FFB6C1" },
-        { name: "Hot Pink", hex: "#FF69B4" },
-        { name: "Magenta", hex: "#FF00FF" },
-        { name: "Violet", hex: "#EE82EE" },
-        { name: "Light Purple", hex: "#DDA0DD" },
-        { name: "Periwinkle", hex: "#C5C5FF" },
-        { name: "Sky Blue", hex: "#87CEEB" },
-        { name: "Electric Blue", hex: "#7DF9FF" }
-      ],
-      'Monk04': [
-        { name: "Warm Gold", hex: "#FFD700" },
-        { name: "Golden Yellow", hex: "#FFBF00" },
-        { name: "Amber", hex: "#FFBF00" },
-        { name: "Orange", hex: "#FFA500" },
-        { name: "Tangerine", hex: "#FF8C00" },
-        { name: "Coral", hex: "#FF7F50" },
-        { name: "Salmon", hex: "#FA8072" },
-        { name: "Peach", hex: "#FFCBA4" },
-        { name: "Apricot", hex: "#FBCEB1" },
-        { name: "Terracotta", hex: "#E2725B" },
-        { name: "Burnt Orange", hex: "#CC5500" },
-        { name: "Rust", hex: "#B7410E" },
-        { name: "Cinnamon", hex: "#D2691E" },
-        { name: "Sandy Brown", hex: "#F4A460" },
-        { name: "Caramel", hex: "#C68E17" },
-        { name: "Honey", hex: "#FFC30B" },
-        { name: "Olive Green", hex: "#808000" },
-        { name: "Forest Green", hex: "#228B22" },
-        { name: "Moss Green", hex: "#8FBC8F" },
-        { name: "Sage", hex: "#9CAF88" },
-        { name: "Khaki", hex: "#F0E68C" },
-        { name: "Beige", hex: "#F5F5DC" },
-        { name: "Tan", hex: "#D2B48C" },
-        { name: "Warm Brown", hex: "#964B00" }
-      ],
-      'Monk05': [
-        { name: "Teal", hex: "#008080" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Jade", hex: "#00A86B" },
-        { name: "Emerald", hex: "#50C878" },
-        { name: "Forest Green", hex: "#228B22" },
-        { name: "Olive", hex: "#808000" },
-        { name: "Sage", hex: "#9CAF88" },
-        { name: "Moss", hex: "#8FBC8F" },
-        { name: "Royal Blue", hex: "#4169E1" },
-        { name: "Navy", hex: "#000080" },
-        { name: "Steel Blue", hex: "#4682B4" },
-        { name: "Slate Blue", hex: "#6A5ACD" },
-        { name: "Purple", hex: "#800080" },
-        { name: "Plum", hex: "#DDA0DD" },
-        { name: "Burgundy", hex: "#800020" },
-        { name: "Wine", hex: "#722F37" },
-        { name: "Crimson", hex: "#DC143C" },
-        { name: "Deep Red", hex: "#8B0000" },
-        { name: "Maroon", hex: "#800000" },
-        { name: "Coral", hex: "#FF7F50" },
-        { name: "Orange Red", hex: "#FF4500" },
-        { name: "Golden Rod", hex: "#DAA520" },
-        { name: "Bronze", hex: "#CD7F32" },
-        { name: "Copper", hex: "#B87333" }
-      ],
-      'Monk06': [
-        { name: "Deep Teal", hex: "#008B8B" },
-        { name: "Hunter Green", hex: "#355E3B" },
-        { name: "Forest Green", hex: "#228B22" },
-        { name: "Pine Green", hex: "#01796F" },
-        { name: "Olive Drab", hex: "#6B8E23" },
-        { name: "Army Green", hex: "#4B5320" },
-        { name: "Bronze", hex: "#CD7F32" },
-        { name: "Copper", hex: "#B87333" },
-        { name: "Rust", hex: "#B7410E" },
-        { name: "Burnt Orange", hex: "#CC5500" },
-        { name: "Terracotta", hex: "#E2725B" },
-        { name: "Sienna", hex: "#A0522D" },
-        { name: "Saddle Brown", hex: "#8B4513" },
-        { name: "Chocolate", hex: "#D2691E" },
-        { name: "Burgundy", hex: "#800020" },
-        { name: "Wine Red", hex: "#722F37" },
-        { name: "Deep Red", hex: "#8B0000" },
-        { name: "Maroon", hex: "#800000" },
-        { name: "Navy Blue", hex: "#000080" },
-        { name: "Midnight Blue", hex: "#191970" },
-        { name: "Royal Blue", hex: "#4169E1" },
-        { name: "Deep Purple", hex: "#663399" },
-        { name: "Eggplant", hex: "#614051" },
-        { name: "Dark Olive", hex: "#556B2F" }
-      ],
-      'Monk07': [
-        { name: "Deep Forest", hex: "#013220" },
-        { name: "Hunter Green", hex: "#355E3B" },
-        { name: "Pine Green", hex: "#01796F" },
-        { name: "Dark Olive", hex: "#556B2F" },
-        { name: "Army Green", hex: "#4B5320" },
-        { name: "Deep Teal", hex: "#003366" },
-        { name: "Midnight Blue", hex: "#191970" },
-        { name: "Navy", hex: "#000080" },
-        { name: "Royal Blue", hex: "#4169E1" },
-        { name: "Steel Blue", hex: "#4682B4" },
-        { name: "Deep Purple", hex: "#301934" },
-        { name: "Eggplant", hex: "#614051" },
-        { name: "Plum", hex: "#8E4585" },
-        { name: "Deep Burgundy", hex: "#722F37" },
-        { name: "Wine", hex: "#722F37" },
-        { name: "Claret", hex: "#7F1734" },
-        { name: "Deep Red", hex: "#8B0000" },
-        { name: "Brick Red", hex: "#CB4154" },
-        { name: "Rust", hex: "#B7410E" },
-        { name: "Burnt Orange", hex: "#CC5500" },
-        { name: "Dark Bronze", hex: "#CD7F32" },
-        { name: "Copper", hex: "#B87333" },
-        { name: "Espresso", hex: "#3C2415" },
-        { name: "Dark Brown", hex: "#654321" }
-      ],
-      'Monk08': [
-        { name: "Electric Pink", hex: "#FF007F" },
-        { name: "Hot Magenta", hex: "#FF1DCE" },
-        { name: "Fuchsia", hex: "#FF00FF" },
-        { name: "Bright Purple", hex: "#8A2BE2" },
-        { name: "Electric Purple", hex: "#BF00FF" },
-        { name: "Royal Purple", hex: "#7851A9" },
-        { name: "Deep Purple", hex: "#663399" },
-        { name: "Indigo", hex: "#4B0082" },
-        { name: "Electric Blue", hex: "#0080FF" },
-        { name: "Royal Blue", hex: "#002FA7" },
-        { name: "Cobalt Blue", hex: "#0047AB" },
-        { name: "Navy", hex: "#000080" },
-        { name: "Midnight Blue", hex: "#191970" },
-        { name: "Deep Teal", hex: "#003366" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Jade Green", hex: "#00A86B" },
-        { name: "Emerald", hex: "#50C878" },
-        { name: "Forest Green", hex: "#228B22" },
-        { name: "Fire Red", hex: "#FF2D00" },
-        { name: "Crimson", hex: "#DC143C" },
-        { name: "Ruby Red", hex: "#E0115F" },
-        { name: "Gold", hex: "#FFD700" },
-        { name: "Bright Orange", hex: "#FF8C00" },
-        { name: "Pure White", hex: "#FFFFFF" }
-      ],
-      'Monk09': [
-        { name: "Neon Pink", hex: "#FF6EC7" },
-        { name: "Electric Pink", hex: "#FF007F" },
-        { name: "Hot Magenta", hex: "#FF1DCE" },
-        { name: "Bright Purple", hex: "#8A2BE2" },
-        { name: "Electric Purple", hex: "#BF00FF" },
-        { name: "Royal Purple", hex: "#7851A9" },
-        { name: "Deep Purple", hex: "#663399" },
-        { name: "Electric Blue", hex: "#0080FF" },
-        { name: "Bright Blue", hex: "#0066FF" },
-        { name: "Cobalt", hex: "#0047AB" },
-        { name: "Royal Blue", hex: "#002FA7" },
-        { name: "Navy", hex: "#000080" },
-        { name: "Midnight Blue", hex: "#191970" },
-        { name: "Steel Blue", hex: "#4682B4" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Cyan", hex: "#00FFFF" },
-        { name: "Electric Green", hex: "#00FF00" },
-        { name: "Lime Green", hex: "#32CD32" },
-        { name: "Bright Yellow", hex: "#FFFF00" },
-        { name: "Gold", hex: "#FFD700" },
-        { name: "Orange", hex: "#FFA500" },
-        { name: "Red Orange", hex: "#FF4500" },
-        { name: "Fire Red", hex: "#FF2D00" },
-        { name: "Pure White", hex: "#FFFFFF" },
-        { name: "Silver", hex: "#C0C0C0" }
-      ],
-      'Monk10': [
-        { name: "Neon Pink", hex: "#FF6EC7" },
-        { name: "Electric Pink", hex: "#FF007F" },
-        { name: "Hot Magenta", hex: "#FF1DCE" },
-        { name: "Fuchsia", hex: "#FF00FF" },
-        { name: "Electric Purple", hex: "#BF00FF" },
-        { name: "Bright Purple", hex: "#8A2BE2" },
-        { name: "Royal Purple", hex: "#7851A9" },
-        { name: "Electric Blue", hex: "#0080FF" },
-        { name: "Bright Blue", hex: "#0066FF" },
-        { name: "Cobalt Blue", hex: "#0047AB" },
-        { name: "Royal Blue", hex: "#002FA7" },
-        { name: "Electric Green", hex: "#00FF00" },
-        { name: "Lime Green", hex: "#32CD32" },
-        { name: "Spring Green", hex: "#00FF7F" },
-        { name: "Cyan", hex: "#00FFFF" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Bright Yellow", hex: "#FFFF00" },
-        { name: "Electric Lime", hex: "#CCFF00" },
-        { name: "Gold", hex: "#FFD700" },
-        { name: "Orange", hex: "#FFA500" },
-        { name: "Bright Orange", hex: "#FF8000" },
-        { name: "Fire Red", hex: "#FF2D00" },
-        { name: "Red", hex: "#FF0000" },
-        { name: "Pure White", hex: "#FFFFFF" },
-        { name: "Snow White", hex: "#FFFAFA" }
-      ]
-    };
-
-    // Get comprehensive colors for the current Monk skin tone, fallback to Monk05 if not found
-    const colors = comprehensiveColorPalettes[monkSkinTone] || comprehensiveColorPalettes['Monk05'] || [];
-
-    return {
-      colors_that_suit: colors,
-      colors: colors,
-      colors_to_avoid: [],
-      seasonal_type: seasonalType,
-      monk_skin_tone: monkSkinTone,
-      message: `Comprehensive color palette for ${seasonalType} seasonal type (${colors.length} colors). These colors are specially curated to complement your ${monkSkinTone} skin tone.`,
-      database_source: false
-    };
-  };
-
-  // Keep original function for backwards compatibility
-  const getLocalColorRecommendations = (skinHex: string, monkSkinTone: string): ColorRecommendations => {
-    // Enhanced and diverse color palettes based on Monk skin tone with more variety
-    const colorPalettes: { [key: string]: ColorInfo[] } = {
-      'Monk01': [
-        { name: "Navy Blue", hex: "#001F3F" },
-        { name: "Soft Rose", hex: "#F4A6CD" },
-        { name: "Lavender Gray", hex: "#C4C3D0" },
-        { name: "Sage Green", hex: "#9CAF88" },
-        { name: "Dusty Blue", hex: "#6B8CAE" },
-        { name: "Mauve", hex: "#E0B4D6" },
-        { name: "Pearl White", hex: "#F8F6F0" },
-        { name: "Soft Taupe", hex: "#B8A99A" },
-        { name: "Ice Blue", hex: "#A2C4C9" },
-        { name: "Blush Pink", hex: "#DE9FAC" },
-        { name: "Silver Gray", hex: "#B5B5B5" },
-        { name: "Mint Green", hex: "#B8E6B8" }
-      ],
-      'Monk02': [
-        { name: "Periwinkle", hex: "#CCCCFF" },
-        { name: "Rose Quartz", hex: "#F7CAC9" },
-        { name: "Seafoam", hex: "#93E9BE" },
-        { name: "Lilac", hex: "#DDA0DD" },
-        { name: "Powder Blue", hex: "#B0E0E6" },
-        { name: "Champagne", hex: "#F7E7CE" },
-        { name: "Soft Coral", hex: "#F88379" },
-        { name: "Dove Gray", hex: "#D5D5D5" },
-        { name: "Aquamarine", hex: "#7FFFD4" },
-        { name: "Peach Blossom", hex: "#FFCBA4" },
-        { name: "Sky Blue", hex: "#87CEEB" },
-        { name: "Cream", hex: "#FFFDD0" }
-      ],
-      'Monk03': [
-        { name: "Coral Reef", hex: "#FF7F7F" },
-        { name: "Mint Cream", hex: "#F5FFFA" },
-        { name: "Peach", hex: "#FFCBA4" },
-        { name: "Lemon Chiffon", hex: "#FFFACD" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Rose Gold", hex: "#E8B4A6" },
-        { name: "Ivory", hex: "#FFFFF0" },
-        { name: "Salmon Pink", hex: "#FA8072" },
-        { name: "Light Teal", hex: "#20B2AA" },
-        { name: "Vanilla", hex: "#F3E5AB" },
-        { name: "Soft Orange", hex: "#FFB347" },
-        { name: "Baby Blue", hex: "#89CFF0" }
-      ],
-      'Monk04': [
-        { name: "Warm Amber", hex: "#FFBF00" },
-        { name: "Terracotta", hex: "#E2725B" },
-        { name: "Golden Rod", hex: "#DAA520" },
-        { name: "Burnt Sienna", hex: "#E97451" },
-        { name: "Olive Drab", hex: "#6B8E23" },
-        { name: "Caramel", hex: "#C68E17" },
-        { name: "Papaya", hex: "#FFEFD5" },
-        { name: "Cinnamon", hex: "#D2691E" },
-        { name: "Sandy Brown", hex: "#F4A460" },
-        { name: "Rust Orange", hex: "#C65102" },
-        { name: "Honey Gold", hex: "#FFC30B" },
-        { name: "Warm Green", hex: "#8FBC8F" }
-      ],
-      'Monk05': [
-        { name: "Teal Blue", hex: "#008B8B" },
-        { name: "Sunflower", hex: "#FFC512" },
-        { name: "Coral Pink", hex: "#F88379" },
-        { name: "Deep Violet", hex: "#9400D3" },
-        { name: "Emerald Green", hex: "#50C878" },
-        { name: "Magenta", hex: "#FF00FF" },
-        { name: "Goldenrod", hex: "#DAA520" },
-        { name: "Royal Blue", hex: "#4169E1" },
-        { name: "Crimson", hex: "#DC143C" },
-        { name: "Forest Green", hex: "#228B22" },
-        { name: "Orange Red", hex: "#FF4500" },
-        { name: "Purple", hex: "#800080" }
-      ],
-      'Monk06': [
-        { name: "Bronze", hex: "#CD7F32" },
-        { name: "Burgundy", hex: "#800020" },
-        { name: "Dark Olive", hex: "#556B2F" },
-        { name: "Copper", hex: "#B87333" },
-        { name: "Deep Teal", hex: "#003366" },
-        { name: "Mahogany", hex: "#C04000" },
-        { name: "Dark Goldenrod", hex: "#B8860B" },
-        { name: "Sienna", hex: "#A0522D" },
-        { name: "Dark Slate Gray", hex: "#2F4F4F" },
-        { name: "Chocolate", hex: "#D2691E" },
-        { name: "Maroon", hex: "#800000" },
-        { name: "Dark Green", hex: "#006400" }
-      ],
-      'Monk07': [
-        { name: "Deep Burgundy", hex: "#722F37" },
-        { name: "Espresso", hex: "#3C2415" },
-        { name: "Pine Green", hex: "#01796F" },
-        { name: "Burnt Orange", hex: "#CC5500" },
-        { name: "Dark Olive", hex: "#3C3C00" },
-        { name: "Brick Red", hex: "#CB4154" },
-        { name: "Forest Green", hex: "#355E3B" },
-        { name: "Dark Bronze", hex: "#CD7F32" },
-        { name: "Charcoal", hex: "#36454F" },
-        { name: "Deep Purple", hex: "#301934" },
-        { name: "Dark Red", hex: "#8B0000" },
-        { name: "Hunter Green", hex: "#355E3B" }
-      ],
-      'Monk08': [
-        { name: "Electric Pink", hex: "#FF007F" },
-        { name: "Royal Blue", hex: "#002FA7" },
-        { name: "Crimson Red", hex: "#DC143C" },
-        { name: "Deep Purple", hex: "#663399" },
-        { name: "Jade Green", hex: "#00A86B" },
-        { name: "Gold", hex: "#FFD700" },
-        { name: "Indigo", hex: "#4B0082" },
-        { name: "Bright Orange", hex: "#FF8C00" },
-        { name: "Turquoise", hex: "#40E0D0" },
-        { name: "Fuchsia", hex: "#FF00FF" },
-        { name: "Lime Green", hex: "#32CD32" },
-        { name: "Bright Yellow", hex: "#FFFF00" }
-      ],
-      'Monk09': [
-        { name: "Deep Wine", hex: "#722F37" },
-        { name: "Dark Forest", hex: "#013220" },
-        { name: "Ruby Red", hex: "#E0115F" },
-        { name: "Midnight Blue", hex: "#191970" },
-        { name: "Plum", hex: "#8E4585" },
-        { name: "Pure White", hex: "#FFFFFF" },
-        { name: "Platinum", hex: "#E5E4E2" },
-        { name: "Eggplant", hex: "#614051" },
-        { name: "Steel Blue", hex: "#4682B4" },
-        { name: "Cranberry", hex: "#DB5079" },
-        { name: "Charcoal Gray", hex: "#36454F" },
-        { name: "Deep Teal", hex: "#003366" }
-      ],
-      'Monk10': [
-        { name: "Neon Pink", hex: "#FF6EC7" },
-        { name: "Electric Blue", hex: "#0080FF" },
-        { name: "Fire Red", hex: "#FF2D00" },
-        { name: "Bright Yellow", hex: "#FFFF00" },
-        { name: "Lime Green", hex: "#00FF00" },
-        { name: "Snow White", hex: "#FFFAFA" },
-        { name: "Cyan", hex: "#00FFFF" },
-        { name: "Spring Green", hex: "#00FF7F" },
-        { name: "Hot Magenta", hex: "#FF1DCE" },
-        { name: "Electric Lime", hex: "#CCFF00" },
-        { name: "Bright Orange", hex: "#FF8000" },
-        { name: "Royal Purple", hex: "#7851A9" }
-      ]
-    };
-
-    // Get colors for the current Monk skin tone, fallback to Monk05 if not found
-    const colors = colorPalettes[monkSkinTone] || colorPalettes['Monk05'] || [
-      { name: "Navy Blue", hex: "#000080" },
-      { name: "Forest Green", hex: "#228B22" },
-      { name: "Burgundy", hex: "#800020" },
-      { name: "Charcoal Gray", hex: "#36454F" },
-      { name: "Cream White", hex: "#F5F5DC" },
-      { name: "Soft Pink", hex: "#FFB6C1" }
-    ];
-
-    // Map Monk skin tone to seasonal type
-    const seasonalTypeMap: { [key: string]: string } = {
-      'Monk01': 'Light Spring',
-      'Monk02': 'Light Spring', 
-      'Monk03': 'Clear Spring',
-      'Monk04': 'Warm Spring',
-      'Monk05': 'Soft Autumn',
-      'Monk06': 'Warm Autumn',
-      'Monk07': 'Deep Autumn',
-      'Monk08': 'Deep Winter',
-      'Monk09': 'Cool Winter',
-      'Monk10': 'Clear Winter'
-    };
-
-    const seasonalType = seasonalTypeMap[monkSkinTone] || 'Universal';
-
-    return {
-      colors_that_suit: colors,
-      seasonal_type: seasonalType,
-      monk_skin_tone: monkSkinTone,
-      message: "These color recommendations are based on your Monk skin tone analysis and seasonal color theory."
-    };
-  };
 
   return (
     <Layout>
@@ -1354,99 +883,6 @@ const DemoRecommendations = () => {
                     </div>
                   )}
 
-                  {/* All Database Colors Section */}
-                  <div className="bg-white rounded-xl p-6 shadow-lg">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                      <div className="flex items-center">
-                        <Palette className="w-6 h-6 text-indigo-600 mr-2" />
-                        <h2 className="text-xl font-bold text-gray-900">All Database Colors</h2>
-                        <span className="ml-2 text-sm text-gray-500">({allDatabaseColors.length} colors)</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowAllColors(!showAllColors);
-                          if (!showAllColors && allDatabaseColors.length === 0) {
-                            fetchAllDatabaseColors();
-                          }
-                        }}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
-                      >
-                        {loadingAllColors ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                            <span>Loading...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Palette className="w-4 h-4" />
-                            <span>{showAllColors ? 'Hide All Colors' : 'Show All Colors'}</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {showAllColors && (
-                      <>
-                        {/* Search Bar */}
-                        <div className="mb-6">
-                          <input
-                            type="text"
-                            placeholder="Search colors by name, hex code, skin tone, or season..."
-                            value={colorSearchTerm}
-                            onChange={(e) => setColorSearchTerm(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                          <p className="text-sm text-gray-500 mt-2">
-                            Showing {filteredDatabaseColors.length} of {allDatabaseColors.length} colors
-                          </p>
-                        </div>
-
-                        {/* All Colors Grid */}
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2 sm:gap-3">
-                          {filteredDatabaseColors.map((color, index) => (
-                            <div key={`${color.hex_code}-${index}`} className="bg-gray-50 p-1 sm:p-2 rounded-lg hover:shadow-md transition-shadow group">
-                              <div 
-                                className="w-full h-8 sm:h-10 md:h-12 rounded-md shadow-sm mb-1"
-                                style={{ backgroundColor: color.hex_code }}
-                                title={`${color.color_name} - ${color.hex_code}`}
-                              />
-                              <div className="text-center">
-                                <p className="text-gray-700 text-xs font-medium truncate" title={color.color_name || 'Unknown Color'}>
-                                  {color.color_name || 'Unknown Color'}
-                                </p>
-                                <p className="text-gray-400 text-xs truncate">{color.hex_code}</p>
-                                {color.suitable_skin_tone && (
-                                  <p className="text-purple-600 text-xs truncate mt-1" title={color.suitable_skin_tone}>
-                                    {color.suitable_skin_tone}
-                                  </p>
-                                )}
-                                {color.seasonal_palette && (
-                                  <p className="text-green-600 text-xs truncate" title={color.seasonal_palette}>
-                                    {color.seasonal_palette}
-                                  </p>
-                                )}
-                                {color.category && (
-                                  <span className={`inline-block text-xs px-1 py-0.5 rounded text-white mt-1 ${
-                                    color.category === 'recommended' ? 'bg-green-500' : 'bg-gray-500'
-                                  }`}>
-                                    {color.category}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {filteredDatabaseColors.length === 0 && colorSearchTerm && (
-                          <div className="text-center py-8 text-gray-500">
-                            <Palette className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>No colors found matching "${colorSearchTerm}"</p>
-                            <p className="text-sm">Try searching by color name, hex code, skin tone, or season.</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
                 </div>
               )}
             </>
