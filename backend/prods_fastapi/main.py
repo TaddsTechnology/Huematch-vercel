@@ -62,19 +62,35 @@ app.add_middleware(
 # Include the color routers
 app.include_router(color_router)
 
-# Monk skin tone scale
-MONK_SKIN_TONES = {
-    'Monk 1': '#f6ede4',
-    'Monk 2': '#f3e7db', 
-    'Monk 3': '#f7ead0',
-    'Monk 4': '#eadaba',
-    'Monk 5': '#d7bd96',
-    'Monk 6': '#a07e56',
-    'Monk 7': '#825c43',
-    'Monk 8': '#604134',
-    'Monk 9': '#3a312a',
-    'Monk 10': '#292420'
-}
+# Monk skin tone scale - now loaded from database
+def get_monk_skin_tones():
+    """Get Monk skin tones from database."""
+    try:
+        from database import SessionLocal, SkinToneMapping
+        db = SessionLocal()
+        try:
+            mappings = db.query(SkinToneMapping).all()
+            monk_tones = {}
+            for mapping in mappings:
+                # Convert Monk01 -> Monk 1 format
+                display_name = mapping.monk_tone.replace('Monk0', 'Monk ').replace('Monk', 'Monk ')
+                if display_name.endswith('10'):
+                    display_name = 'Monk 10'
+                monk_tones[display_name] = mapping.hex_code
+            return monk_tones
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Failed to load Monk skin tones from database: {e}")
+        # Emergency fallback - minimal set
+        return {
+            'Monk 1': '#f6ede4',
+            'Monk 5': '#d7bd96', 
+            'Monk 10': '#292420'
+        }
+
+# Initialize monk tones on startup
+MONK_SKIN_TONES = get_monk_skin_tones()
 
 
 def apply_lighting_correction(image_array: np.ndarray) -> np.ndarray:
@@ -223,14 +239,8 @@ def get_color_recommendations(skin_tone: str = Query(None)):
         from database import SessionLocal, SkinToneMapping, ColorPalette
         
         if not skin_tone:
-            # Return default recommendations if no skin tone provided
-            return [
-                {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
-                {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
-                {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"},
-                {"hex_code": "#DEB887", "color_name": "Burlywood", "category": "recommended"},
-                {"hex_code": "#D2691E", "color_name": "Chocolate", "category": "recommended"}
-            ]
+            # Return error when no skin tone provided
+            raise HTTPException(status_code=400, detail="skin_tone parameter is required")
         
         db = SessionLocal()
         try:
@@ -257,12 +267,7 @@ def get_color_recommendations(skin_tone: str = Query(None)):
             
             if not seasonal_type:
                 logger.warning(f"Could not find seasonal type for skin tone: {skin_tone}")
-                # Return default recommendations
-                return [
-                    {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
-                    {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
-                    {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"}
-                ]
+                raise HTTPException(status_code=404, detail=f"No seasonal type mapping found for skin tone: {skin_tone}")
             
             # Get color palette for this seasonal type
             palette = db.query(ColorPalette).filter(
@@ -271,11 +276,7 @@ def get_color_recommendations(skin_tone: str = Query(None)):
             
             if not palette:
                 logger.warning(f"No color palette found for seasonal type: {seasonal_type}")
-                # Return default recommendations
-                return [
-                    {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
-                    {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"}
-                ]
+                raise HTTPException(status_code=404, detail=f"No color palette found for seasonal type: {seasonal_type}")
             
             # Format the flattering colors for response
             recommendations = []
@@ -295,12 +296,8 @@ def get_color_recommendations(skin_tone: str = Query(None)):
             
     except Exception as e:
         logger.error(f"Error getting color recommendations: {e}")
-        # Return fallback recommendations
-        return [
-            {"hex_code": "#8B4513", "color_name": "Saddle Brown", "category": "recommended"},
-            {"hex_code": "#A0522D", "color_name": "Sienna", "category": "recommended"},
-            {"hex_code": "#CD853F", "color_name": "Peru", "category": "recommended"}
-        ]
+        # Raise HTTP exception instead of returning hardcoded colors
+        raise HTTPException(status_code=500, detail="Database error: unable to fetch color recommendations")
 
 
 @app.get("/api/color-recommendations")
@@ -323,6 +320,10 @@ def get_api_color_recommendations(
             "DATABASE_URL", 
             "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
         )
+        
+        # Force synchronous driver
+        if DATABASE_URL.startswith('postgresql+asyncpg://'):
+            DATABASE_URL = DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://')
         
         engine = create_engine(DATABASE_URL)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -347,6 +348,8 @@ def get_api_color_recommendations(
                 if mapping:
                     seasonal_type = mapping[0]
                     logger.info(f"Found seasonal type: {seasonal_type} for {skin_tone}")
+                else:
+                    logger.info(f"No seasonal mapping found for {skin_tone}, using Universal")
                 
                 # Step 2: Get colors from color_palettes (seasonal-specific)
                 if seasonal_type != "Universal":
@@ -497,34 +500,24 @@ def get_api_color_recommendations(
         
     except Exception as e:
         logger.error(f"Database error in color recommendations: {e}")
-        # Comprehensive fallback colors
-        fallback_colors = [
-            {"hex_code": "#000080", "color_name": "Navy Blue", "category": "recommended"},
-            {"hex_code": "#228B22", "color_name": "Forest Green", "category": "recommended"},
-            {"hex_code": "#800020", "color_name": "Burgundy", "category": "recommended"},
-            {"hex_code": "#36454F", "color_name": "Charcoal Gray", "category": "recommended"},
-            {"hex_code": "#F5F5DC", "color_name": "Cream White", "category": "recommended"},
-            {"hex_code": "#FFB6C1", "color_name": "Soft Pink", "category": "recommended"},
-            {"hex_code": "#663399", "color_name": "Royal Purple", "category": "recommended"},
-            {"hex_code": "#50C878", "color_name": "Emerald Green", "category": "recommended"},
-            {"hex_code": "#FF6600", "color_name": "Deep Orange", "category": "recommended"},
-            {"hex_code": "#8B4513", "color_name": "Chocolate Brown", "category": "recommended"}
-        ]
-        
-        # Format fallback response to match frontend expectations
-        fallback_response = {
-            "colors_that_suit": [
-                {
-                    "name": color.get("color_name", "Unknown Color"),
-                    "hex": color.get("hex_code", "#000000")
-                } for color in (fallback_colors[:limit] if len(fallback_colors) > limit else fallback_colors)
-            ],
-            "seasonal_type": "Universal",
-            "monk_skin_tone": skin_tone,
-            "message": f"Fallback color recommendations due to database error"
-        }
-        
-        return fallback_response
+        # Return whatever colors we found, even if there was an error
+        if all_colors:
+            logger.info(f"Partial success: returning {len(all_colors)} colors despite error")
+            formatted_response = {
+                "colors_that_suit": [
+                    {
+                        "name": color.get("color_name", "Unknown Color"),
+                        "hex": color.get("hex_code", "#000000")
+                    } for color in all_colors
+                ],
+                "seasonal_type": seasonal_type,
+                "monk_skin_tone": skin_tone,
+                "message": f"Partial database results for {skin_tone or 'universal skin tone'}"
+            }
+            return formatted_response
+        else:
+            # Only raise exception if we got no colors at all
+            raise HTTPException(status_code=500, detail=f"Database error: unable to fetch color recommendations - {str(e)}")
 
 
 @app.get("/api/color-palettes-db")
@@ -535,21 +528,8 @@ def get_color_palettes_db(
     """Get color palettes from database for specific skin tone - with fallback."""
     logger.info(f"Color palette request: skin_tone={skin_tone}, hex_color={hex_color}")
     
-    # Default fallback palettes
-    default_colors = [
-        {"hex": "#F4A460", "name": "Sandy Brown"},
-        {"hex": "#DDA0DD", "name": "Plum"},
-        {"hex": "#98FB98", "name": "Pale Green"},
-        {"hex": "#87CEEB", "name": "Sky Blue"},
-        {"hex": "#F0E68C", "name": "Khaki"}
-    ]
-    
     if not skin_tone:
-        return {
-            "colors": default_colors,
-            "seasonal_type": "Unknown",
-            "description": "Default color palette - no skin tone provided"
-        }
+        raise HTTPException(status_code=400, detail="skin_tone parameter is required")
     
     try:
         # Try database approach first
@@ -591,9 +571,46 @@ def get_color_palettes_db(
     except Exception as e:
         logger.warning(f"Database lookup failed: {e}")
     
-    # Fallback response with appropriate colors based on skin tone
+    # Fallback response - get basic colors from database if possible
+    try:
+        from database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            fallback_query = text("""
+                SELECT DISTINCT hex_code, color_name 
+                FROM comprehensive_colors 
+                WHERE color_family IN ('blue', 'green', 'red', 'neutral', 'brown')
+                AND hex_code IS NOT NULL AND color_name IS NOT NULL
+                LIMIT 10
+            """)
+            result = db.execute(fallback_query)
+            fallback_colors = result.fetchall()
+            
+            if fallback_colors:
+                colors_list = [{"name": row[1], "hex": row[0]} for row in fallback_colors]
+            else:
+                # Ultimate fallback - basic colors
+                colors_list = [
+                    {"name": "Navy Blue", "hex": "#002D72"},
+                    {"name": "Forest Green", "hex": "#205C40"},
+                    {"name": "Burgundy", "hex": "#890C58"},
+                    {"name": "Charcoal", "hex": "#36454F"}
+                ]
+        finally:
+            db.close()
+    except Exception as fallback_e:
+        logger.warning(f"Fallback query failed: {fallback_e}")
+        # Ultimate fallback - basic colors
+        colors_list = [
+            {"name": "Navy Blue", "hex": "#002D72"},
+            {"name": "Forest Green", "hex": "205C40"},
+            {"name": "Burgundy", "hex": "#890C58"},
+            {"name": "Charcoal", "hex": "#36454F"}
+        ]
+    
     return {
-        "colors": default_colors,
+        "colors": colors_list,
         "colors_to_avoid": [],
         "seasonal_type": skin_tone or "Unknown",
         "description": f"Fallback color palette for {skin_tone or 'unknown skin tone'} - database not available"
@@ -637,22 +654,74 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
         except Exception as e:
             logger.warning(f"Enhanced analysis failed: {e}, falling back to simple analysis")
             
-        # Fallback
+        # Fallback - get a random monk tone from database
+        try:
+            from database import SessionLocal, SkinToneMapping
+            import random
+            db = SessionLocal()
+            try:
+                mappings = db.query(SkinToneMapping).all()
+                if mappings:
+                    # Pick a middle-range monk tone for fallback
+                    fallback_mapping = next((m for m in mappings if 'Monk0' in m.monk_tone and m.monk_tone in ['Monk02', 'Monk03', 'Monk04']), mappings[0])
+                    fallback_rgb = list(hex_to_rgb(fallback_mapping.hex_code))
+                    return {
+                        'monk_skin_tone': fallback_mapping.monk_tone,
+                        'monk_tone_display': fallback_mapping.monk_tone.replace('Monk0', 'Monk '),
+                        'monk_hex': fallback_mapping.hex_code,
+                        'derived_hex_code': fallback_mapping.hex_code,
+                        'dominant_rgb': fallback_rgb,
+                        'confidence': 0.3,
+                        'success': False,
+                        'error': 'Fallback to database default'
+                    }
+            finally:
+                db.close()
+        except Exception as fallback_e:
+            logger.warning(f"Database fallback failed: {fallback_e}")
+        
+        # Ultimate fallback if database is unavailable
         return {
             'monk_skin_tone': 'Monk02',
-            'monk_tone_display': 'Monk 2',
-            'monk_hex': MONK_SKIN_TONES['Monk 2'],
+            'monk_tone_display': 'Monk 2', 
+            'monk_hex': '#f3e7db',
             'derived_hex_code': '#f3e7db',
             'dominant_rgb': [243, 231, 219],
             'confidence': 0.3,
             'success': False,
-            'error': 'Fallback to default'
+            'error': 'Ultimate fallback - database unavailable'
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in analyze_skin_tone endpoint: {e}")
+        # Try to get fallback from database even in error case
+        try:
+            from database import SessionLocal, SkinToneMapping
+            db = SessionLocal()
+            try:
+                mappings = db.query(SkinToneMapping).all()
+                if mappings:
+                    # Pick middle tone as error fallback
+                    error_fallback = next((m for m in mappings if m.monk_tone == 'Monk05'), mappings[len(mappings)//2])
+                    error_rgb = list(hex_to_rgb(error_fallback.hex_code))
+                    return {
+                        'monk_skin_tone': error_fallback.monk_tone,
+                        'monk_tone_display': error_fallback.monk_tone.replace('Monk0', 'Monk '),
+                        'monk_hex': error_fallback.hex_code,
+                        'derived_hex_code': error_fallback.hex_code,
+                        'dominant_rgb': error_rgb,
+                        'confidence': 0.5,
+                        'success': False,
+                        'error': f"Error fallback from database: {str(e)}"
+                    }
+            finally:
+                db.close()
+        except Exception:
+            pass  # Use ultimate fallback below
+            
+        # Ultimate fallback if all database attempts fail
         return {
             'monk_skin_tone': 'Monk05',
             'monk_tone_display': 'Monk 5',
@@ -661,7 +730,7 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
             'dominant_rgb': [215, 189, 150],
             'confidence': 0.5,
             'success': False,
-            'error': str(e)
+            'error': f"Ultimate error fallback: {str(e)}"
         }
 
 

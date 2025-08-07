@@ -37,19 +37,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Monk skin tone scale
-MONK_SKIN_TONES = {
-    'Monk 1': '#f6ede4',
-    'Monk 2': '#f3e7db', 
-    'Monk 3': '#f7ead0',
-    'Monk 4': '#eadaba',
-    'Monk 5': '#d7bd96',
-    'Monk 6': '#a07e56',
-    'Monk 7': '#825c43',
-    'Monk 8': '#604134',
-    'Monk 9': '#3a312a',
-    'Monk 10': '#292420'
-}
+# Monk skin tone scale - now loaded from database
+def get_monk_skin_tones():
+    """Get Monk skin tones from database."""
+    try:
+        # Database connection 
+        DATABASE_URL = os.getenv(
+            "DATABASE_URL", 
+            "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
+        )
+        
+        engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        db = SessionLocal()
+        
+        try:
+            cursor = db.connection().connection.cursor()
+            cursor.execute("SELECT monk_tone, hex_code FROM skin_tone_mappings ORDER BY monk_tone")
+            mappings = cursor.fetchall()
+            
+            monk_tones = {}
+            for row in mappings:
+                # Convert Monk01 -> Monk 1 format
+                display_name = row[0].replace('Monk0', 'Monk ').replace('Monk10', 'Monk 10')
+                monk_tones[display_name] = row[1]
+                
+            if monk_tones:
+                return monk_tones
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Failed to load Monk skin tones from database: {e}")
+    
+    # Emergency fallback - minimal set
+    return {
+        'Monk 1': '#f6ede4',
+        'Monk 5': '#d7bd96', 
+        'Monk 10': '#292420'
+    }
+
+# Initialize monk tones on startup
+MONK_SKIN_TONES = get_monk_skin_tones()
 
 # Basic color mapping
 color_mapping = {
@@ -635,15 +663,46 @@ def analyze_skin_tone_enhanced(image_array: np.ndarray) -> Dict:
         
     except Exception as e:
         logger.error(f"Error in enhanced skin tone analysis: {e}")
+        # Try to get fallback from database
+        try:
+            DATABASE_URL = os.getenv(
+                "DATABASE_URL", 
+                "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
+            )
+            engine = create_engine(DATABASE_URL)
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            db = SessionLocal()
+            try:
+                cursor = db.connection().connection.cursor()
+                cursor.execute("SELECT monk_tone, hex_code FROM skin_tone_mappings WHERE monk_tone IN ('Monk02', 'Monk03') ORDER BY monk_tone LIMIT 1")
+                fallback_data = cursor.fetchone()
+                if fallback_data:
+                    fallback_rgb = list(hex_to_rgb(fallback_data[1]))
+                    return {
+                        'monk_skin_tone': fallback_data[0],
+                        'monk_tone_display': fallback_data[0].replace('Monk0', 'Monk '),
+                        'monk_hex': fallback_data[1],
+                        'derived_hex_code': fallback_data[1],
+                        'dominant_rgb': fallback_rgb,
+                        'confidence': 0.3,
+                        'success': False,
+                        'error': f'Enhanced analysis error, database fallback: {str(e)}'
+                    }
+            finally:
+                db.close()
+        except Exception:
+            pass
+            
+        # Ultimate fallback
         return {
             'monk_skin_tone': 'Monk02',  # Default to lighter tone for errors
             'monk_tone_display': 'Monk 2',
-            'monk_hex': MONK_SKIN_TONES['Monk 2'],
+            'monk_hex': '#f3e7db',
             'derived_hex_code': '#f3e7db',
             'dominant_rgb': [243, 231, 219],
             'confidence': 0.3,
             'success': False,
-            'error': str(e)
+            'error': f'Ultimate fallback: {str(e)}'
         }
 
 # Keep the simple version as fallback

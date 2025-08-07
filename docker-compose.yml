@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Database service
   postgres:
@@ -77,11 +75,12 @@ services:
       - ENABLE_MONITORING=true
       - ENABLE_BACKGROUND_TASKS=true
       # Cloudinary settings
-      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
-      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
-      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - CLOUDINARY_CLOUD_NAME=dbfperlhc
+      - CLOUDINARY_API_KEY=686121626416134
+      - CLOUDINARY_API_SECRET=sKzyutyRbpeB5v4RiUHboj7gbGY
+      - CLOUDINARY_URL=cloudinary://686121626416134:sKzyutyRbpeB5v4RiUHboj7gbGY@dbfperlhc
       # Sentry settings
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=https://3e332a3455981e58101a093989e6b605@o4509774929461248.ingest.us.sentry.io/4509789483827200
       - SENTRY_ENVIRONMENT=production
       - SENTRY_TRACES_SAMPLE_RATE=1.0
     depends_on:

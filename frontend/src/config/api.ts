@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
   COLOR_SUGGESTIONS: `${API_BASE_URL}/color-suggestions`,
   COLOR_RECOMMENDATIONS: `${API_BASE_URL}/api/color-recommendations`,
   COLOR_PALETTES_DB: `${API_BASE_URL}/api/color-palettes-db`,
+  ALL_COLORS: `${API_BASE_URL}/api/colors/all`,
   MAKEUP_DATA: `${API_BASE_URL}/data/`,
   APPAREL: `${API_BASE_URL}/apparel`,
   HEALTH: `${API_BASE_URL}/health`,

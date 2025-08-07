@@ -7,14 +7,15 @@ from pydantic import BaseModel
 # Create router for color endpoints
 color_router = APIRouter(prefix="/api/colors", tags=["colors"])
 
-# Database connection (use your existing DB config)
+# Database connection (use external Render.com database)
+import os
 DB_CONFIG = {
     'host': 'dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com',
     'database': 'fashion_jvy9',
     'user': 'fashion_jvy9_user',
     'password': '0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh',
     'port': '5432',
-    'sslmode': 'require'
+    'sslmode': 'require'  # External database needs SSL
 }
 
 # Pydantic models
@@ -252,3 +253,4 @@ async def get_all_colors(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching colors: {e}")
+

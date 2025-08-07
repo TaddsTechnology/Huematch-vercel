@@ -4,13 +4,15 @@ from sqlalchemy.orm import sessionmaker
 import os
 from typing import Optional
 
-# Database URL - Use environment variable or fallback to the provided URL
+# Database URL - Use environment variable with external database default
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
 )
 
-# Create SQLAlchemy engine
+# Create SQLAlchemy engine (force synchronous driver)
+if DATABASE_URL.startswith('postgresql+asyncpg://'):
+    DATABASE_URL = DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://')
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
