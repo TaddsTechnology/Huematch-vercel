@@ -53,9 +53,14 @@ if settings.sentry_dsn:
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly for production
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173", 
+        "https://app.taddstechnology.com",
+        "https://ai-fashion-backend-d9nj.onrender.com"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
