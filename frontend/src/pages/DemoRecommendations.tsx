@@ -180,14 +180,14 @@ const DemoRecommendations = () => {
             const recommendedColors = databaseColors
               .filter((color: any) => color.category === 'recommended')
               .map((color: any) => ({
-                name: color.color_name || `Color ${color.hex_code}`,
+                name: color.color_name || getColorNameFromHex(color.hex_code),
                 hex: color.hex_code
               }));
             
             const colorsToAvoid = databaseColors
               .filter((color: any) => color.category === 'avoid')
               .map((color: any) => ({
-                name: color.color_name || `Color ${color.hex_code}`,
+                name: color.color_name || getColorNameFromHex(color.hex_code),
                 hex: color.hex_code
               }));
             
@@ -611,6 +611,185 @@ const DemoRecommendations = () => {
     } finally {
       setLoadingAllColors(false);
     }
+  };
+
+  // Function to convert hex code to a proper color name
+  const getColorNameFromHex = (hexCode: string): string => {
+    // Remove # if present and convert to uppercase
+    const hex = hexCode.replace('#', '').toUpperCase();
+    
+    // Common color name mappings for hex codes
+    const colorMap: { [key: string]: string } = {
+      // Whites and Off-whites
+      'FFFFFF': 'Pure White',
+      'FFFAFA': 'Snow White',
+      'F8F8FF': 'Ghost White',
+      'F5F5F5': 'White Smoke',
+      'FFFEF0': 'Floral White',
+      'FAEBD7': 'Antique White',
+      'FAF0E6': 'Linen',
+      'FDF5E6': 'Old Lace',
+      'F0F8FF': 'Alice Blue',
+      
+      // Blacks and Grays
+      '000000': 'Black',
+      '2F2F2F': 'Dark Gray',
+      '404040': 'Charcoal',
+      '696969': 'Dim Gray',
+      '808080': 'Gray',
+      'A9A9A9': 'Dark Gray',
+      'C0C0C0': 'Silver',
+      'D3D3D3': 'Light Gray',
+      'DCDCDC': 'Gainsboro',
+      
+      // Reds
+      'FF0000': 'Red',
+      'DC143C': 'Crimson',
+      'B22222': 'Fire Brick',
+      '8B0000': 'Dark Red',
+      'CD5C5C': 'Indian Red',
+      'F08080': 'Light Coral',
+      'FA8072': 'Salmon',
+      'E9967A': 'Dark Salmon',
+      'FFA07A': 'Light Salmon',
+      'FF6347': 'Tomato',
+      'FF4500': 'Orange Red',
+      
+      // Blues
+      '0000FF': 'Blue',
+      '000080': 'Navy',
+      '191970': 'Midnight Blue',
+      '4169E1': 'Royal Blue',
+      '0080FF': 'Electric Blue',
+      '87CEEB': 'Sky Blue',
+      'ADD8E6': 'Light Blue',
+      '87CEFA': 'Light Sky Blue',
+      'B0C4DE': 'Light Steel Blue',
+      '4682B4': 'Steel Blue',
+      '5F9EA0': 'Cadet Blue',
+      
+      // Greens
+      '008000': 'Green',
+      '006400': 'Dark Green',
+      '228B22': 'Forest Green',
+      '32CD32': 'Lime Green',
+      '00FF00': 'Lime',
+      '7CFC00': 'Lawn Green',
+      '7FFF00': 'Chartreuse',
+      'ADFF2F': 'Green Yellow',
+      '9ACD32': 'Yellow Green',
+      '00FF7F': 'Spring Green',
+      '00FA9A': 'Medium Spring Green',
+      '90EE90': 'Light Green',
+      
+      // Yellows
+      'FFFF00': 'Yellow',
+      'FFD700': 'Gold',
+      'FFA500': 'Orange',
+      'FF8C00': 'Dark Orange',
+      'FFB347': 'Peach',
+      'FFCBA4': 'Peach',
+      'FFEFD5': 'Papaya Whip',
+      'FFE4B5': 'Moccasin',
+      'F0E68C': 'Khaki',
+      'BDB76B': 'Dark Khaki',
+      
+      // Purples
+      '800080': 'Purple',
+      '4B0082': 'Indigo',
+      '8A2BE2': 'Blue Violet',
+      '9400D3': 'Violet',
+      'BA55D3': 'Medium Orchid',
+      'DA70D6': 'Orchid',
+      'DDA0DD': 'Plum',
+      'EE82EE': 'Violet',
+      'FF00FF': 'Magenta',
+      'C71585': 'Medium Violet Red',
+      
+      // Teals and Cyans
+      '008080': 'Teal',
+      '008B8B': 'Dark Cyan',
+      '00FFFF': 'Cyan',
+      '40E0D0': 'Turquoise',
+      '48D1CC': 'Medium Turquoise',
+      '00CED1': 'Dark Turquoise',
+      '20B2AA': 'Light Sea Green',
+      
+      // Browns
+      'A52A2A': 'Brown',
+      '8B4513': 'Saddle Brown',
+      'D2691E': 'Chocolate',
+      'CD853F': 'Peru',
+      'F4A460': 'Sandy Brown',
+      'D2B48C': 'Tan',
+      'BC8F8F': 'Rosy Brown',
+      'F5DEB3': 'Wheat',
+      'DEB887': 'Burlywood',
+      
+      // Pinks
+      'FFC0CB': 'Pink',
+      'FFB6C1': 'Light Pink',
+      'FF69B4': 'Hot Pink',
+      'FF1493': 'Deep Pink',
+      'DB7093': 'Pale Violet Red',
+      'C71585': 'Medium Violet Red',
+    };
+    
+    // Check if we have an exact match
+    if (colorMap[hex]) {
+      return colorMap[hex];
+    }
+    
+    // If no exact match, try to find the closest color by analyzing RGB values
+    const hexToRgb = (h: string) => {
+      const r = parseInt(h.substr(0, 2), 16);
+      const g = parseInt(h.substr(2, 2), 16);
+      const b = parseInt(h.substr(4, 2), 16);
+      return { r, g, b };
+    };
+    
+    const targetRgb = hexToRgb(hex.padEnd(6, '0'));
+    let closestColor = 'Unknown Color';
+    let minDistance = Infinity;
+    
+    // Find the closest named color
+    Object.entries(colorMap).forEach(([colorHex, colorName]) => {
+      const colorRgb = hexToRgb(colorHex);
+      const distance = Math.sqrt(
+        Math.pow(targetRgb.r - colorRgb.r, 2) +
+        Math.pow(targetRgb.g - colorRgb.g, 2) +
+        Math.pow(targetRgb.b - colorRgb.b, 2)
+      );
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestColor = colorName;
+      }
+    });
+    
+    // If the distance is too large, provide a generic name based on dominant color
+    if (minDistance > 100) {
+      if (targetRgb.r > targetRgb.g && targetRgb.r > targetRgb.b) {
+        if (targetRgb.r > 200) return 'Light Red';
+        if (targetRgb.r > 150) return 'Red';
+        return 'Dark Red';
+      } else if (targetRgb.g > targetRgb.r && targetRgb.g > targetRgb.b) {
+        if (targetRgb.g > 200) return 'Light Green';
+        if (targetRgb.g > 150) return 'Green';
+        return 'Dark Green';
+      } else if (targetRgb.b > targetRgb.r && targetRgb.b > targetRgb.g) {
+        if (targetRgb.b > 200) return 'Light Blue';
+        if (targetRgb.b > 150) return 'Blue';
+        return 'Dark Blue';
+      } else {
+        const avg = (targetRgb.r + targetRgb.g + targetRgb.b) / 3;
+        if (avg > 200) return 'Light Gray';
+        if (avg > 100) return 'Gray';
+        return 'Dark Gray';
+      }
+    }
+    
+    return closestColor;
   };
 
   // Filter colors based on search term
@@ -1264,16 +1443,6 @@ const DemoRecommendations = () => {
                             )}
                           </h3>
                           
-                          {colorRecommendations?.database_source && (
-                            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                              <p className="text-green-700 text-sm flex items-center">
-                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                Loaded from our comprehensive color database
-                              </p>
-                            </div>
-                          )}
                           
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
                             {(() => {
@@ -1284,7 +1453,7 @@ const DemoRecommendations = () => {
                                 return colorsToDisplay.map((color, index) => (
                                   <div key={`${color.hex}-${color.name}-${index}`} className="bg-gray-50 p-2 sm:p-3 rounded-lg hover:shadow-md transition-shadow group">
                                     <div 
-                                      className="w-full h-12 sm:h-14 md:h-16 rounded-lg shadow-md mb-2 group-hover:scale-105 transition-transform"
+                                      className="w-full h-16 sm:h-18 md:h-20 lg:h-22 rounded-lg shadow-md mb-2 group-hover:scale-105 transition-transform"
                                       style={{ backgroundColor: color.hex }}
                                       title={`${color.name} - ${color.hex}`}
                                     />
@@ -1307,49 +1476,7 @@ const DemoRecommendations = () => {
                           </div>
                         </div>
                         
-                        {/* Colors to Avoid Section - Only show if there are colors to avoid */}
-                        {colorRecommendations?.colors_to_avoid && colorRecommendations.colors_to_avoid.length > 0 && (
-                          <div className="mt-8">
-                            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-                              <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 008.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
-                              </svg>
-                              Colors to Avoid
-                              <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                                {colorRecommendations.colors_to_avoid.length} colors
-                              </span>
-                            </h3>
-                            
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
-                              {colorRecommendations.colors_to_avoid.map((color, index) => (
-                                <div key={`avoid-${color.hex}-${color.name}-${index}`} className="bg-red-50 p-2 sm:p-3 rounded-lg border border-red-200">
-                                  <div 
-                                    className="w-full h-12 sm:h-14 md:h-16 rounded-lg shadow-md mb-2 relative"
-                                    style={{ backgroundColor: color.hex }}
-                                    title={`${color.name} - ${color.hex} (avoid)`}
-                                  >
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                      <svg className="w-6 h-6 text-red-600 bg-white rounded-full p-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 008.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
-                                      </svg>
-                                    </div>
-                                  </div>
-                                  <span className="text-red-700 text-xs sm:text-sm font-medium block truncate" title={color.name}>
-                                    {color.name}
-                                  </span>
-                                  <span className="text-red-500 text-xs hidden sm:block">{color.hex}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                         
-                        {/* Information Message */}
-                        {colorRecommendations.message && (
-                          <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-                            <p className="text-purple-700">{colorRecommendations.message}</p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
