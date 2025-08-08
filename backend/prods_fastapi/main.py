@@ -37,7 +37,7 @@ except Exception as e:
     logger.warning(f"Database initialization failed: {e}")
 
 # Import color router
-from color_routes import color_router
+from color_routes import color_router, palette_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -53,14 +53,20 @@ if settings.sentry_dsn:
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly for production
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173", 
+        "https://app.taddstechnology.com",
+        "https://ai-fashion-backend-d9nj.onrender.com"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 # Include the color routers
 app.include_router(color_router)
+app.include_router(palette_router)
 
 # Monk skin tone scale - now loaded from database
 def get_monk_skin_tones():

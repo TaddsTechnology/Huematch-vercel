@@ -36,7 +36,7 @@ services:
     volumes: []
     # Production environment variables
     environment:
-      - VITE_API_URL=http://backend:8000
+      - VITE_API_URL=https://ai-fashion-backend-d9nj.onrender.com
       - NODE_ENV=production
     # Logging configuration
     logging:

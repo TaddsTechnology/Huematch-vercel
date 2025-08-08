@@ -105,7 +105,7 @@ services:
       - "3000:3000"
     # Removed volumes for production mode - changes will be in the built image
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=https://ai-fashion-backend-d9nj.onrender.com
       - NODE_ENV=production
     depends_on:
       backend:
