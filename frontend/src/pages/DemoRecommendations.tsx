@@ -6,6 +6,7 @@ import ProductRecommendations from '../components/ProductRecommendations';
 import FeedbackPopup from '../components/FeedbackPopup';
 import { API_BASE_URL, API_ENDPOINTS, buildApiUrl } from '../config/api';
 import { monkSkinTones } from '../lib/data/monkSkinTones';
+import { getColorNameFromHex } from '../utils/colorUtils';
 
 // Consolidated interfaces
 interface Product {
