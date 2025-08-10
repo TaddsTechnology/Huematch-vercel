@@ -681,7 +681,7 @@ async def analyze_skin_tone_fast(file: UploadFile = File(...)):
 
 @app.post("/analyze-skin-tone")
 async def analyze_skin_tone(file: UploadFile = File(...)):
-    """Analyze skin tone from uploaded image."""
+    """Analyze skin tone from uploaded image - NOW OPTIMIZED!"""
     try:
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
@@ -694,27 +694,32 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
 
         image_array = np.array(image)
         
-        # Store image in Cloudinary for ML dataset and user history
-        upload_result = None
+        # USE OPTIMIZED ANALYZER FOR IMMEDIATE PERFORMANCE BOOST!
         try:
-            import uuid
-            unique_id = str(uuid.uuid4())[:8]
-            public_id = f"skin_analysis/{unique_id}_{file.filename.replace(' ', '_') if file.filename else 'upload'}"
-            upload_result = cloudinary_service.upload_image(image_data, public_id)
-            logger.info(f"Image stored in Cloudinary: {upload_result.get('public_id') if upload_result else 'Failed'}")
+            result = optimized_analyzer.analyze_skin_tone_fast(image_array, MONK_SKIN_TONES)
+            if result['success']:
+                # Background Cloudinary upload (non-blocking)
+                try:
+                    import asyncio
+                    import uuid
+                    unique_id = str(uuid.uuid4())[:8]
+                    public_id = f"skin_analysis_optimized/{unique_id}_{file.filename.replace(' ', '_') if file.filename else 'upload'}"
+                    asyncio.create_task(
+                        async_analyzer.upload_to_cloudinary_async(image_data, public_id, cloudinary_service)
+                    )
+                except Exception as e:
+                    logger.debug(f"Background cloudinary upload failed: {e}")
+                return result
         except Exception as e:
-            logger.warning(f"Failed to store image in Cloudinary: {e}")
-
+            logger.warning(f"Optimized analysis failed: {e}, falling back to enhanced analysis")
+            
+        # Fallback to original enhanced analyzer if optimized fails
         try:
             result = enhanced_analyzer.analyze_skin_tone(image_array, MONK_SKIN_TONES)
             if result['success']:
-                # Add Cloudinary URL to response if upload was successful
-                if upload_result and upload_result.get('success'):
-                    result['cloudinary_url'] = upload_result.get('url')
-                    result['image_public_id'] = upload_result.get('public_id')
                 return result
         except Exception as e:
-            logger.warning(f"Enhanced analysis failed: {e}, falling back to simple analysis")
+            logger.warning(f"Enhanced analysis failed: {e}, falling back to database")
             
         # Fallback - get a random monk tone from database
         try:
