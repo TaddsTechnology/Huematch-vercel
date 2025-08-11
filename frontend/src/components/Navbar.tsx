@@ -23,6 +23,19 @@ const Navbar = () => {
     };
   }, []);
 
+  // Handle body scroll lock when mobile menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const navItems = [
     { name: 'Resources', path: '/resources', icon: <BookOpen className="w-4 h-4 mr-1" /> },
     { name: 'Blog', path: '/blog', icon: <BookOpen className="w-4 h-4 mr-1" /> },
@@ -49,7 +62,7 @@ const Navbar = () => {
                   <Sparkles className="h-7 w-7 text-pink-600 transition-transform group-hover:scale-110" />
                 </div>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent pl-1">
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent pl-1">
                 HueMatch
               </span>
             </Link>
@@ -88,7 +101,7 @@ const Navbar = () => {
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-full bg-purple-50 text-gray-600 hover:text-pink-600 transition-colors focus:outline-none"
+              className="p-3 rounded-full bg-purple-50 text-gray-600 hover:text-pink-600 transition-colors focus:outline-none min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -98,15 +111,15 @@ const Navbar = () => {
 
       {/* Mobile Navigation */}
       <div
-        className={`md:hidden fixed inset-y-0 right-0 transform w-72 bg-white shadow-xl transition-transform duration-300 ease-in-out z-50 ${
+        className={`md:hidden fixed inset-y-0 right-0 transform w-full max-w-xs sm:w-72 bg-white shadow-xl transition-transform duration-300 ease-in-out z-60 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="pt-20 px-6 space-y-3 h-full overflow-y-auto pb-20">
-          <div className="flex justify-end absolute top-5 right-5">
+        <div className="pt-16 px-4 sm:px-6 space-y-3 h-full overflow-y-auto pb-20">
+          <div className="flex justify-end absolute top-3 right-3 sm:top-5 sm:right-5">
             <button
               onClick={() => setIsOpen(false)}
-              className="p-2 rounded-full bg-purple-50 text-gray-600 hover:text-pink-600 transition-colors focus:outline-none"
+              className="p-3 rounded-full bg-purple-50 text-gray-600 hover:text-pink-600 transition-colors focus:outline-none min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <X className="h-5 w-5" />
             </button>

@@ -83,7 +83,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-16">
             <div className="lg:w-1/2 space-y-8 text-center lg:text-left">
-              <h1 className="text-5xl lg:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 leading-tight">
+              <h1 className="text-3xl sm:text-5xl lg:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 leading-tight">
                 Discover Your Perfect Colors
               </h1>
               <p className="text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
@@ -109,39 +109,39 @@ const LandingPage = () => {
             
             <div className="lg:w-1/2 relative flex justify-center">
               {/* Main container with pink background */}
-              <div className="relative w-[500px] h-[400px] bg-gradient-to-br from-pink-200 to-pink-300 rounded-[3rem] p-6">
+              <div className="relative w-full max-w-lg h-80 sm:h-96 lg:h-[400px] bg-gradient-to-br from-pink-200 to-pink-300 rounded-[2rem] sm:rounded-[3rem] p-4 sm:p-6">
                 {/* Main woman image */}
                 <img
                   src="https://images.pexels.com/photos/2065195/pexels-photo-2065195.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-                  alt="Woman in pink outfit"
-                  className="w-full h-full object-cover rounded-[2.5rem]"
+                  alt="Woman showcasing beautiful pink outfit with natural makeup look"
+                  className="w-full h-full object-cover rounded-[1.5rem] sm:rounded-[2.5rem]"
                 />
               </div>
               
-              {/* Floating makeup palette - top left */}
-              <div className="absolute -top-8 -left-8 w-28 h-28 bg-white rounded-2xl shadow-xl p-3 transform rotate-12 hover:rotate-6 transition-transform duration-300">
+              {/* Floating makeup palette - top left - hidden on mobile */}
+              <div className="hidden sm:block absolute -top-8 -left-8 w-20 sm:w-28 h-20 sm:h-28 bg-white rounded-2xl shadow-xl p-2 sm:p-3 transform rotate-12 hover:rotate-6 transition-transform duration-300">
                 <img 
                   src="https://images.pexels.com/photos/2533266/pexels-photo-2533266.jpeg?auto=compress&cs=tinysrgb&w=200" 
-                  alt="Makeup palette with lipstick" 
+                  alt="Professional makeup palette with various lipstick shades" 
                   className="w-full h-full object-cover rounded-xl"
                 />
               </div>
               
-              {/* Floating makeup products - bottom left */}
-              <div className="absolute -bottom-6 -left-4 w-36 h-36 bg-white rounded-2xl shadow-xl p-3 transform -rotate-6 hover:rotate-0 transition-transform duration-300">
+              {/* Floating makeup products - bottom left - hidden on mobile */}
+              <div className="hidden sm:block absolute -bottom-6 -left-4 w-28 sm:w-36 h-28 sm:h-36 bg-white rounded-2xl shadow-xl p-2 sm:p-3 transform -rotate-6 hover:rotate-0 transition-transform duration-300">
                 <img 
                   src="https://images.pexels.com/photos/2537930/pexels-photo-2537930.jpeg?auto=compress&cs=tinysrgb&w=200" 
-                  alt="Black makeup products" 
+                  alt="Collection of premium black makeup products and brushes" 
                   className="w-full h-full object-cover rounded-xl"
                 />
               </div>
               
               {/* AI Badge - bottom right */}
-              <div className="absolute -bottom-4 -right-4 bg-white rounded-2xl shadow-xl px-6 py-4 flex items-center gap-3 border border-gray-100/50">
-                <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
-                  <Sparkle className="h-5 w-5 text-pink-600" />
+              <div className="absolute -bottom-2 sm:-bottom-4 -right-2 sm:-right-4 bg-white rounded-xl sm:rounded-2xl shadow-xl px-3 sm:px-6 py-2 sm:py-4 flex items-center gap-2 sm:gap-3 border border-gray-100/50 min-h-[44px]">
+                <div className="p-1 sm:p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
+                  <Sparkle className="h-4 w-4 sm:h-5 sm:w-5 text-pink-600" />
                 </div>
-                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">✨ Smart Beauty Insights</span>
+                <span className="text-xs sm:text-sm font-semibold text-gray-800 whitespace-nowrap">✨ Smart AI Insights</span>
               </div>
             </div>
           </div>
@@ -151,22 +151,22 @@ const LandingPage = () => {
       {/* Stats Section */}
       <section className="py-12 bg-white/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div className="p-6">
-              <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">100K+</p>
-              <p className="text-gray-600 mt-2">Active Users</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 text-center">
+            <div className="p-3 sm:p-6">
+              <p className="text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">100K+</p>
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">Active Users</p>
             </div>
-            <div className="p-6">
-              <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">12</p>
-              <p className="text-gray-600 mt-2">Color Seasons</p>
+            <div className="p-3 sm:p-6">
+              <p className="text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">12</p>
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">Color Seasons</p>
             </div>
-            <div className="p-6">
-              <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">98%</p>
-              <p className="text-gray-600 mt-2">Satisfaction Rate</p>
+            <div className="p-3 sm:p-6">
+              <p className="text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">98%</p>
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">Satisfaction Rate</p>
             </div>
-            <div className="p-6">
-              <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">5M+</p>
-              <p className="text-gray-600 mt-2">Color Analyses</p>
+            <div className="p-3 sm:p-6">
+              <p className="text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">5M+</p>
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">Color Analyses</p>
             </div>
           </div>
         </div>
@@ -228,7 +228,7 @@ const LandingPage = () => {
           </div>
 
           {/* Features Comparison */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
             {/* Free Features */}
             <div className="bg-white/80 backdrop-blur rounded-3xl p-8 shadow-lg border border-purple-100 hover:shadow-xl transition-all duration-300">
               <div className="flex items-center justify-between mb-6">

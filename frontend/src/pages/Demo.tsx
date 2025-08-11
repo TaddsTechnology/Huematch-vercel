@@ -14,7 +14,7 @@ const Demo = () => {
           <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <Sparkles className="h-12 w-12 text-purple-500 animate-pulse" />
           </div>
-          <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 sm:text-6xl mb-6">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-6">
             Fashion AI Assistant
           </h1>
           <p className="mt-4 text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
