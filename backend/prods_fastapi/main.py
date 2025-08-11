@@ -14,7 +14,6 @@ import mediapipe as mp
 # face_recognition also removed to avoid dlib compilation issues
 # Using MediaPipe and OpenCV for face detection instead
 from enhanced_skin_tone_analyzer import EnhancedSkinToneAnalyzer
-from optimized_skin_tone_analyzer import OptimizedSkinToneAnalyzer, AsyncOptimizedAnalyzer
 
 # Import services
 from services.cloudinary_service import cloudinary_service
@@ -27,10 +26,6 @@ logger = logging.getLogger(__name__)
 
 # Initialize enhanced skin tone analyzer
 enhanced_analyzer = EnhancedSkinToneAnalyzer()
-
-# Initialize optimized analyzer for fast processing
-optimized_analyzer = OptimizedSkinToneAnalyzer()
-async_analyzer = AsyncOptimizedAnalyzer()
 
 # Initialize database on startup
 try:
@@ -626,57 +621,6 @@ def get_color_palettes_db(
         "seasonal_type": skin_tone or "Unknown",
         "description": f"Fallback color palette for {skin_tone or 'unknown skin tone'} - database not available"
     }
-
-
-@app.post("/analyze-skin-tone-fast")
-async def analyze_skin_tone_fast(file: UploadFile = File(...)):
-    """Fast skin tone analysis with optimized processing (~0.5-1s response time)."""
-    try:
-        if not file.content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="File must be an image")
-
-        image_data = await file.read()
-        image = Image.open(io.BytesIO(image_data))
-
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-
-        image_array = np.array(image)
-        
-        # Fast analysis without Cloudinary upload during processing
-        result = optimized_analyzer.analyze_skin_tone_fast(image_array, MONK_SKIN_TONES)
-        
-        # Optional: Upload to Cloudinary in background (non-blocking)
-        if result.get('success'):
-            try:
-                import asyncio
-                import uuid
-                unique_id = str(uuid.uuid4())[:8]
-                public_id = f"skin_analysis_fast/{unique_id}_{file.filename.replace(' ', '_') if file.filename else 'upload'}"
-                # Fire and forget background upload
-                asyncio.create_task(
-                    async_analyzer.upload_to_cloudinary_async(image_data, public_id, cloudinary_service)
-                )
-            except Exception as e:
-                logger.debug(f"Background cloudinary upload failed: {e}")
-        
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in fast analyze_skin_tone endpoint: {e}")
-        return {
-            'monk_skin_tone': 'Monk04',
-            'monk_tone_display': 'Monk 4',
-            'monk_hex': MONK_SKIN_TONES.get('Monk 4', '#eadaba'),
-            'derived_hex_code': '#eadaba',
-            'dominant_rgb': [234, 218, 186],
-            'confidence': 0.4,
-            'success': False,
-            'error': f"Fast analysis error: {str(e)}",
-            'processing_time': 0.1
-        }
 
 
 @app.post("/analyze-skin-tone")
