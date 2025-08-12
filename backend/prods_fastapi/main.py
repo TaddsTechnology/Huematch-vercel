@@ -1,6 +1,10 @@
-from fastapi import FastAPI, Query, HTTPException, File, UploadFile
+from fastapi import FastAPI, Query, HTTPException, File, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 import numpy as np
 import cv2
 import math
@@ -10,6 +14,7 @@ import io
 from webcolors import hex_to_rgb, rgb_to_hex
 import logging
 import mediapipe as mp
+import asyncio
 # import dlib  # Removed to avoid compilation issues
 # face_recognition also removed to avoid dlib compilation issues
 # Using MediaPipe and OpenCV for face detection instead
@@ -20,9 +25,45 @@ from services.cloudinary_service import cloudinary_service
 from services.sentry_service import EnhancedSentryService
 from config import settings
 
+# Import performance optimizations
+from performance import (
+    init_performance_systems,
+    cleanup_performance_systems,
+    get_performance_stats,
+    get_db_pool,
+    get_cache_manager,
+    get_image_optimizer
+)
+
+# Import comprehensive error handling
+from error_handling import (
+    setup_error_handling,
+    get_error_stats,
+    enhanced_health_check,
+    circuit_breaker_context,
+    ErrorCategory
+)
+from health_checks import register_all_health_checks
+
+# Import enhanced monitoring system
+from monitoring_enhanced import (
+    setup_monitoring,
+    cleanup_monitoring,
+    setup_database_health_check,
+    setup_cache_health_check,
+    setup_custom_health_check,
+    get_health_status,
+    get_metrics,
+    get_traces,
+    get_trace_details,
+    get_alerts,
+    get_system_stats
+)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+from datetime import datetime
 
 # Initialize enhanced skin tone analyzer
 enhanced_analyzer = EnhancedSkinToneAnalyzer()
@@ -39,6 +80,9 @@ except Exception as e:
 # Import color router
 from color_routes import color_router, palette_router
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # Create FastAPI app
 app = FastAPI(
     title="AI Fashion Backend",
@@ -46,22 +90,39 @@ app = FastAPI(
     description="AI Fashion recommendation system with skin tone analysis"
 )
 
+# Add rate limiting middleware
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 # Add Sentry middleware for error tracking
 if settings.sentry_dsn:
     app.add_middleware(SentryAsgiMiddleware)
 
-# Configure CORS
+# Setup comprehensive error handling system
+setup_error_handling(app)
+
+# Setup enhanced monitoring system will be done in startup event
+
+# Configure CORS with restricted headers and methods
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173", 
-        "https://app.taddstechnology.com",
-        "https://ai-fashion-backend-d9nj.onrender.com"
+        "https://app.taddstechnology.com"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=[
+        "accept",
+        "accept-language",
+        "content-language",
+        "content-type",
+        "authorization",
+        "x-requested-with"
+    ],
+    max_age=3600  # Cache preflight for 1 hour
 )
 
 # Include the color routers
@@ -97,6 +158,41 @@ def get_monk_skin_tones():
 
 # Initialize monk tones on startup
 MONK_SKIN_TONES = get_monk_skin_tones()
+
+# Application lifecycle events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize performance systems on startup"""
+    logger.info("🚀 Starting AI Fashion Backend...")
+    try:
+        # Initialize performance systems
+        await init_performance_systems(app)
+        
+        # Setup enhanced monitoring system
+        await setup_monitoring(app)
+        
+        # Register health check dependencies
+        register_all_health_checks(app.state.health_manager)
+        
+        # Setup additional health checks for monitoring
+        setup_database_health_check(lambda: {"status": "healthy", "message": "Database is responding"})
+        setup_cache_health_check(lambda: {"status": "healthy", "message": "Cache is responding"})
+        
+        logger.info("✅ All systems initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {e}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown"""
+    logger.info("🔄 Shutting down AI Fashion Backend...")
+    try:
+        await cleanup_performance_systems(app)
+        await cleanup_monitoring(app)
+        logger.info("✅ Cleanup completed")
+    except Exception as e:
+        logger.error(f"❌ Shutdown cleanup failed: {e}")
 
 
 def apply_lighting_correction(image_array: np.ndarray) -> np.ndarray:
@@ -220,8 +316,138 @@ def home():
 
 
 @app.get("/health")
-def health_check():
-    return {"status": "healthy", "message": "AI Fashion Backend is running"}
+async def health_check():
+    """Comprehensive health check with all dependencies"""
+    try:
+        return await enhanced_health_check(app)
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy", 
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+@app.get("/performance")
+def get_performance_metrics():
+    """Get comprehensive performance metrics"""
+    try:
+        return get_performance_stats(app)
+    except Exception as e:
+        logger.error(f"Failed to get performance stats: {e}")
+        return {"error": str(e)}
+
+@app.get("/performance/database")
+def get_database_performance():
+    """Get database connection pool performance metrics"""
+    try:
+        if hasattr(app.state, 'db_pool'):
+            return app.state.db_pool.get_pool_stats()
+        else:
+            return {"error": "Database pool not initialized"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/performance/cache")
+def get_cache_performance():
+    """Get cache performance metrics"""
+    try:
+        if hasattr(app.state, 'cache_manager'):
+            return app.state.cache_manager.get_cache_stats()
+        else:
+            return {"error": "Cache manager not initialized"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/performance/images")
+def get_image_optimization_performance():
+    """Get image optimization performance metrics"""
+    try:
+        if hasattr(app.state, 'image_optimizer'):
+            return app.state.image_optimizer.get_optimization_stats()
+        else:
+            return {"error": "Image optimizer not initialized"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/error-stats")
+def get_comprehensive_error_stats():
+    """Get comprehensive error handling statistics"""
+    try:
+        return get_error_stats(app)
+    except Exception as e:
+        logger.error(f"Failed to get error stats: {e}")
+        return {"error": str(e)}
+
+@app.get("/health/quick")
+async def quick_health():
+    """Quick health check for critical systems only"""
+    try:
+        from health_checks import quick_health_summary
+        return await quick_health_summary()
+    except Exception as e:
+        logger.error(f"Quick health check failed: {e}")
+        return {"status": "unknown", "error": str(e)}
+
+# Enhanced monitoring endpoints
+@app.get("/monitoring/metrics")
+def get_monitoring_metrics():
+    """Get comprehensive metrics from enhanced monitoring system"""
+    try:
+        return get_metrics()
+    except Exception as e:
+        logger.error(f"Failed to get monitoring metrics: {e}")
+        return {"error": str(e)}
+
+@app.get("/monitoring/traces")
+def get_monitoring_traces(limit: int = 20):
+    """Get recent request traces"""
+    try:
+        return get_traces(limit)
+    except Exception as e:
+        logger.error(f"Failed to get traces: {e}")
+        return {"error": str(e)}
+
+@app.get("/monitoring/traces/{trace_id}")
+def get_monitoring_trace_details(trace_id: str):
+    """Get detailed information about a specific trace"""
+    try:
+        trace_details = get_trace_details(trace_id)
+        if not trace_details:
+            raise HTTPException(status_code=404, detail="Trace not found")
+        return trace_details
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get trace details: {e}")
+        return {"error": str(e)}
+
+@app.get("/monitoring/alerts")
+def get_monitoring_alerts():
+    """Get alerts and alert history"""
+    try:
+        return get_alerts()
+    except Exception as e:
+        logger.error(f"Failed to get alerts: {e}")
+        return {"error": str(e)}
+
+@app.get("/monitoring/system")
+def get_monitoring_system_stats():
+    """Get system performance statistics"""
+    try:
+        return get_system_stats()
+    except Exception as e:
+        logger.error(f"Failed to get system stats: {e}")
+        return {"error": str(e)}
+
+@app.get("/monitoring/health")
+async def get_monitoring_health():
+    """Get comprehensive health status from monitoring system"""
+    try:
+        return await get_health_status()
+    except Exception as e:
+        logger.error(f"Failed to get health status: {e}")
+        return {"status": "unknown", "error": str(e)}
 
 
 @app.get("/makeup-types")
@@ -307,7 +533,9 @@ def get_color_recommendations(skin_tone: str = Query(None)):
 
 
 @app.get("/api/color-recommendations")
+@limiter.limit("30/minute")
 def get_api_color_recommendations(
+    request: Request,
     skin_tone: str = Query(None),
     hex_color: str = Query(None),
     limit: int = Query(50, ge=10, le=100, description="Maximum number of colors to return")
@@ -324,7 +552,7 @@ def get_api_color_recommendations(
         
         DATABASE_URL = os.getenv(
             "DATABASE_URL", 
-            "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
+            "postgresql://localhost:5432/ai_fashion_dev"
         )
         
         # Force synchronous driver
@@ -624,28 +852,49 @@ def get_color_palettes_db(
 
 
 @app.post("/analyze-skin-tone")
-async def analyze_skin_tone(file: UploadFile = File(...)):
-    """Analyze skin tone from uploaded image."""
+@limiter.limit("10/minute")
+async def analyze_skin_tone(request: Request, file: UploadFile = File(...)):
+    """Analyze skin tone from uploaded image with optimization."""
     try:
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
 
         image_data = await file.read()
-        image = Image.open(io.BytesIO(image_data))
-
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-
-        image_array = np.array(image)
         
-        # Store image in Cloudinary for ML dataset and user history
+        # Optimize image for faster processing
+        try:
+            if hasattr(app.state, 'image_optimizer'):
+                image_array, optimization_stats = app.state.image_optimizer.optimize_for_analysis(image_data)
+                # Apply additional preprocessing for skin tone analysis
+                image_array = app.state.image_optimizer.preprocess_for_skin_analysis(image_array)
+                logger.info(f"Image optimized: {optimization_stats.optimization_applied}, processing time: {optimization_stats.processing_time_ms}ms")
+            else:
+                # Fallback to basic processing
+                image = Image.open(io.BytesIO(image_data))
+                if image.mode != 'RGB':
+                    image = image.convert('RGB')
+                image_array = np.array(image)
+        except Exception as e:
+            logger.warning(f"Image optimization failed: {e}, using fallback")
+            image = Image.open(io.BytesIO(image_data))
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            image_array = np.array(image)
+        
+        # Store image in Cloudinary for ML dataset and user history with circuit breaker
         upload_result = None
         try:
-            import uuid
-            unique_id = str(uuid.uuid4())[:8]
-            public_id = f"skin_analysis/{unique_id}_{file.filename.replace(' ', '_') if file.filename else 'upload'}"
-            upload_result = cloudinary_service.upload_image(image_data, public_id)
-            logger.info(f"Image stored in Cloudinary: {upload_result.get('public_id') if upload_result else 'Failed'}")
+            async with circuit_breaker_context(
+                "cloudinary", 
+                failure_threshold=3, 
+                timeout_seconds=30,
+                recovery_timeout=60
+            ):
+                import uuid
+                unique_id = str(uuid.uuid4())[:8]
+                public_id = f"skin_analysis/{unique_id}_{file.filename.replace(' ', '_') if file.filename else 'upload'}"
+                upload_result = cloudinary_service.upload_image(image_data, public_id)
+                logger.info(f"Image stored in Cloudinary: {upload_result.get('public_id') if upload_result else 'Failed'}")
         except Exception as e:
             logger.warning(f"Failed to store image in Cloudinary: {e}")
 

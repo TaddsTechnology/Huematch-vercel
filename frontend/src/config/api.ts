@@ -1,8 +1,8 @@
 // API Configuration - Updated for production
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// PostgreSQL Database Configuration
-export const DATABASE_URL = 'postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9';
+// PostgreSQL Database Configuration - This should be handled by backend only
+// export const DATABASE_URL = 'moved to backend environment variables';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 

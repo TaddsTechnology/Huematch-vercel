@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     debug: bool = False
     
     # Database settings
-    database_url: str = os.getenv("DATABASE_URL", "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9")
+    database_url: str = os.getenv("DATABASE_URL", "postgresql://localhost:5432/ai_fashion_dev")
     async_database_url: str = ""  # Will be derived from database_url
     db_pool_size: int = 20
     db_max_overflow: int = 30
