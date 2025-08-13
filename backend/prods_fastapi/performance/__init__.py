@@ -50,9 +50,27 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def add_performance_middleware_early(app):
+    """
+    Add performance middleware before application startup
+    
+    Args:
+        app: FastAPI application instance
+    """
+    logger.info("Adding performance middleware...")
+    
+    try:
+        # Add performance middleware
+        add_performance_middleware(app)
+        logger.info("✓ Performance middleware added")
+        
+    except Exception as e:
+        logger.error(f"Failed to add performance middleware: {e}")
+        raise
+
 async def init_performance_systems(app):
     """
-    Initialize all performance systems for the FastAPI application
+    Initialize performance systems for the FastAPI application (excluding middleware)
     
     Args:
         app: FastAPI application instance
@@ -75,11 +93,7 @@ async def init_performance_systems(app):
         app.state.image_optimizer = image_optimizer
         logger.info("✓ Image optimizer initialized")
         
-        # Add performance middleware
-        add_performance_middleware(app)
-        logger.info("✓ Performance middleware added")
-        
-        logger.info("🚀 All performance systems initialized successfully")
+        logger.info("🚀 Performance systems initialized successfully")
         
     except Exception as e:
         logger.error(f"Failed to initialize performance systems: {e}")
@@ -168,6 +182,7 @@ __all__ = [
     'SmartCompressionMiddleware',
     'RequestSizeLimitMiddleware',
     'add_performance_middleware',
+    'add_performance_middleware_early',
     'init_performance_systems',
     'cleanup_performance_systems',
     'get_performance_stats'

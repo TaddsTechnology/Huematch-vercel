@@ -48,6 +48,7 @@ from health_checks import register_all_health_checks
 # Import enhanced monitoring system
 from monitoring_enhanced import (
     setup_monitoring,
+    setup_monitoring_middleware,
     cleanup_monitoring,
     setup_database_health_check,
     setup_cache_health_check,
@@ -101,6 +102,19 @@ if settings.sentry_dsn:
 
 # Setup comprehensive error handling system
 setup_error_handling(app)
+
+# Add performance middleware before startup
+from performance import add_performance_middleware_early
+try:
+    add_performance_middleware_early(app)
+except Exception as e:
+    logger.warning(f"Failed to add performance middleware: {e}")
+
+# Add monitoring middleware before startup
+try:
+    setup_monitoring_middleware(app)
+except Exception as e:
+    logger.warning(f"Failed to add monitoring middleware: {e}")
 
 # Setup enhanced monitoring system will be done in startup event
 
