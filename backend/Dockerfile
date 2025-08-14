@@ -8,12 +8,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libgl1-mesa-dri \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    python3-opencv \
     wget \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -30,7 +31,7 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p processed_data prods_fastapi/data
 
-# Expose port 8000
+# Expose port (will be overridden by PORT env var)
 EXPOSE 8000
 
 # Copy entrypoint script and set permissions
@@ -43,9 +44,9 @@ RUN chmod +x /app/entrypoint.sh && \
 ENV PYTHONPATH=/app:/app/prods_fastapi
 ENV PYTHONUNBUFFERED=1
 
-# Health check endpoint
+# Health check endpoint (use PORT environment variable with fallback to 8000)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # Use entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"]
