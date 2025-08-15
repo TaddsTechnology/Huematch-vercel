@@ -110,7 +110,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173", 
-        "https://app.taddstechnology.com"
+        "https://app.taddstechnology.com",
+        "https://ai-fashion-backend-d9nj.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
@@ -850,6 +851,17 @@ def get_color_palettes_db(
         "description": f"Fallback color palette for {skin_tone or 'unknown skin tone'} - database not available"
     }
 
+
+@app.get("/analyze-skin-tone")
+def analyze_skin_tone_info():
+    """Information about the skin tone analysis endpoint."""
+    return {
+        "message": "Use POST method with image file to analyze skin tone",
+        "method": "POST",
+        "content_type": "multipart/form-data",
+        "parameter": "file (image file)",
+        "example": "curl -X POST -F 'file=@image.jpg' /analyze-skin-tone"
+    }
 
 @app.post("/analyze-skin-tone")
 @limiter.limit("10/minute")
