@@ -125,20 +125,36 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173", 
         "https://app.taddstechnology.com",
-        "https://ai-fashion-backend-d9nj.onrender.com"
+        "https://ai-fashion-backend-d9nj.onrender.com",
+        "http://localhost:8000",  # For local development
+        "https://localhost:8000",  # For HTTPS local development
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=[
         "accept",
         "accept-language",
         "content-language",
         "content-type",
         "authorization",
-        "x-requested-with"
+        "x-requested-with",
+        "cache-control",
+        "pragma",
+        "origin",
+        "user-agent",
+        "dnt",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "sec-fetch-dest"
     ],
     max_age=3600  # Cache preflight for 1 hour
 )
+
+# Add explicit OPTIONS handler for CORS preflight requests
+@app.options("/{path:path}")
+async def handle_options(path: str):
+    """Handle CORS preflight requests for all paths"""
+    return {"message": "OK"}
 
 # Include the color routers
 app.include_router(color_router)
@@ -1018,5 +1034,5 @@ async def analyze_skin_tone(request: Request, file: UploadFile = File(...)):
 if __name__ == "__main__":
     import uvicorn
     import os
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)

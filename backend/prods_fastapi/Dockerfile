@@ -11,7 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FONTCONFIG_PATH=/tmp/fontconfig \
     FONTCONFIG_FILE=/tmp/fontconfig/fonts.conf \
     XDG_CACHE_HOME=/tmp \
-    PORT=8000 \
     QT_QPA_PLATFORM=offscreen \
     DISPLAY=:99 \
     OPENCV_LOG_LEVEL=ERROR
@@ -55,12 +54,12 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-# Health check
+# Health check - use PORT env var with fallback to 10000 (Render's default)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
-# Expose port
-EXPOSE 8000
+# Expose port - Render uses PORT env var, default to 10000
+EXPOSE ${PORT:-10000}
 
-# Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Command to run the application - use PORT environment variable with Render's default
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1"]

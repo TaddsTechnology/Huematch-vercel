@@ -32,10 +32,13 @@ def start_server():
     
     # Start the server
     try:
+        # Get port from environment variable (defaults to 10000 for Render compatibility)
+        port = os.environ.get('PORT', '10000')
+        
         # Use uvicorn to run the FastAPI app
         subprocess.run([
             sys.executable, "-m", "uvicorn", 
-            "main:app", "--host", "0.0.0.0", "--port", "8000", 
+            "main:app", "--host", "0.0.0.0", "--port", port, 
             "--reload"
         ], check=True)
     except KeyboardInterrupt:

@@ -167,41 +167,67 @@ const DemoRecommendations = () => {
           console.log('Fetching all colors with params:', Object.fromEntries(queryParams));
           
           // Fetch all colors from database that match the skin tone
-          let response = await fetch(buildApiUrl(API_ENDPOINTS.ALL_COLORS, Object.fromEntries(queryParams)));
+          let response = await fetch(buildApiUrl(API_ENDPOINTS.COLOR_PALETTES_DB, Object.fromEntries(queryParams)));
           
           if (response.ok) {
-            const databaseColors = await response.json();
-            console.log(`Fetched ${databaseColors.length} colors from database for ${seasonalType}`);
+            const responseData = await response.json();
+            console.log('Raw API response:', responseData);
             
-            // Transform database colors to color recommendations format
-            const recommendedColors = databaseColors
-              .filter((color: any) => color.category === 'recommended')
-              .map((color: any) => ({
-                name: color.color_name || getColorNameFromHex(color.hex_code),
-                hex: color.hex_code
-              }));
-            
-            const colorsToAvoid = databaseColors
-              .filter((color: any) => color.category === 'avoid')
-              .map((color: any) => ({
-                name: color.color_name || getColorNameFromHex(color.hex_code),
-                hex: color.hex_code
-              }));
-            
-            // Create comprehensive color recommendations from database
-            const transformedData = {
-              colors_that_suit: recommendedColors,
-              colors: recommendedColors,
-              colors_to_avoid: colorsToAvoid,
-              seasonal_type: seasonalType,
-              monk_skin_tone: monkSkinTone,
-              description: `Based on your ${seasonalType} seasonal type and ${monkSkinTone} skin tone, here are all the colors from our database that complement your complexion.`,
-              message: `Showing ${recommendedColors.length} recommended colors and ${colorsToAvoid.length} colors to avoid from our comprehensive database.`,
-              database_source: true // Flag to indicate this came from database
-            };
-            
-            setColorRecommendations(transformedData);
-            setError(null);
+            // Handle the actual API response format from color-palettes-db endpoint
+            if (responseData.colors_that_suit || responseData.colors) {
+              // Direct API response format
+              const transformedData = {
+                colors_that_suit: responseData.colors_that_suit || responseData.colors || [],
+                colors: responseData.colors_that_suit || responseData.colors || [],
+                colors_to_avoid: responseData.colors_to_avoid || [],
+                seasonal_type: responseData.seasonal_type || seasonalType,
+                monk_skin_tone: responseData.monk_skin_tone || monkSkinTone,
+                description: responseData.description || `Based on your ${seasonalType} seasonal type and ${monkSkinTone} skin tone, here are colors from our database that complement your complexion.`,
+                message: responseData.message || `Found ${(responseData.colors_that_suit || responseData.colors || []).length} color recommendations`,
+                database_source: true
+              };
+              
+              setColorRecommendations(transformedData);
+              setError(null);
+            } else {
+              // Fallback: check if it's an array of colors (old format)
+              const databaseColors = Array.isArray(responseData) ? responseData : 
+                                   (responseData && Array.isArray(responseData.data) ? responseData.data : []);
+                                   
+              console.log(`Processing ${databaseColors.length} colors from database for ${seasonalType}`);
+              
+              // Transform database colors to color recommendations format with safety checks
+              const recommendedColors = databaseColors
+                .filter((color: any) => color && typeof color === 'object' && color.category === 'recommended')
+                .map((color: any) => ({
+                  name: color.color_name || getColorNameFromHex(color.hex_code) || 'Unknown Color',
+                  hex: color.hex_code || '#000000'
+                }))
+                .filter((color: any) => color.hex && color.hex !== '#000000'); // Filter out invalid colors
+              
+              const colorsToAvoid = databaseColors
+                .filter((color: any) => color && typeof color === 'object' && color.category === 'avoid')
+                .map((color: any) => ({
+                  name: color.color_name || getColorNameFromHex(color.hex_code) || 'Unknown Color',
+                  hex: color.hex_code || '#000000'
+                }))
+                .filter((color: any) => color.hex && color.hex !== '#000000'); // Filter out invalid colors
+              
+              // Create comprehensive color recommendations from database
+              const transformedData = {
+                colors_that_suit: recommendedColors,
+                colors: recommendedColors,
+                colors_to_avoid: colorsToAvoid,
+                seasonal_type: seasonalType,
+                monk_skin_tone: monkSkinTone,
+                description: `Based on your ${seasonalType} seasonal type and ${monkSkinTone} skin tone, here are all the colors from our database that complement your complexion.`,
+                message: `Showing ${recommendedColors.length} recommended colors and ${colorsToAvoid.length} colors to avoid from our comprehensive database.`,
+                database_source: true // Flag to indicate this came from database
+              };
+              
+              setColorRecommendations(transformedData);
+              setError(null);
+            }
           } else {
             console.error('Database color service unavailable:', response.status);
             
@@ -217,14 +243,27 @@ const DemoRecommendations = () => {
                 const fallbackData = await fallbackResponse.json();
                 console.log('Using color palettes fallback:', fallbackData);
                 
+                // Safely extract colors with validation
+                const extractedColors = fallbackData.colors || fallbackData.colors_that_suit || [];
+                const extractedColorsToAvoid = fallbackData.colors_to_avoid || [];
+                
+                // Ensure we have valid arrays
+                const safeColors = Array.isArray(extractedColors) ? extractedColors.filter(color => 
+                  color && typeof color === 'object' && color.hex && color.name
+                ) : [];
+                
+                const safeColorsToAvoid = Array.isArray(extractedColorsToAvoid) ? extractedColorsToAvoid.filter(color => 
+                  color && typeof color === 'object' && color.hex && color.name
+                ) : [];
+                
                 const transformedFallback = {
-                  colors_that_suit: fallbackData.colors || fallbackData.colors_that_suit || [],
-                  colors: fallbackData.colors || [],
-                  colors_to_avoid: fallbackData.colors_to_avoid || [],
+                  colors_that_suit: safeColors,
+                  colors: safeColors,
+                  colors_to_avoid: safeColorsToAvoid,
                   seasonal_type: fallbackData.seasonal_type || seasonalType,
                   monk_skin_tone: monkSkinTone,
-                  description: fallbackData.description,
-                  message: fallbackData.message || fallbackData.description
+                  description: fallbackData.description || `Color recommendations for ${seasonalType}`,
+                  message: fallbackData.message || fallbackData.description || `Found ${safeColors.length} color recommendations`
                 };
                 
                 setColorRecommendations(transformedFallback);

@@ -14,7 +14,7 @@ def start_application():
     print("🚀 Starting AI Fashion Backend...")
     
     # Get port from environment (Render uses PORT env var)
-    port = os.environ.get('PORT', '8000')
+    port = os.environ.get('PORT', '10000')
     print(f"🌐 Using port: {port}")
     
     # Set environment variables

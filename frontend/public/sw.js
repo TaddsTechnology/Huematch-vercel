@@ -68,7 +68,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Handle API requests with network-first strategy
-  if (url.pathname.startsWith('/api/')) {
+  if (url.pathname.startsWith('/api/') || url.hostname.includes('ai-fashion-backend') || url.hostname.includes('onrender.com')) {
     event.respondWith(networkFirst(request));
     return;
   }

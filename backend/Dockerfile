@@ -32,7 +32,7 @@ COPY . .
 RUN mkdir -p processed_data prods_fastapi/data
 
 # Expose port (will be overridden by PORT env var)
-EXPOSE 8000
+EXPOSE 10000
 
 # Copy entrypoint script and set permissions
 COPY entrypoint.sh /app/entrypoint.sh
@@ -44,9 +44,9 @@ RUN chmod +x /app/entrypoint.sh && \
 ENV PYTHONPATH=/app:/app/prods_fastapi
 ENV PYTHONUNBUFFERED=1
 
-# Health check endpoint (use PORT environment variable with fallback to 8000)
+# Health check endpoint (use PORT environment variable with fallback to 10000)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+    CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
 # Use entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"]

@@ -213,43 +213,146 @@ async def get_all_colors(
     category: Optional[str] = Query(None, description="Filter by category"),
     skin_tone: Optional[str] = Query(None, description="Filter by skin tone")
 ):
-    """Get all colors with optional filters"""
+    """Get all colors with optional filters - using correct database tables"""
     try:
-        from database import SessionLocal
+        from database import SessionLocal, ColorPalette, SkinToneMapping
         from sqlalchemy import text
         import json
         
         db = SessionLocal()
         try:
-            base_query = "SELECT hex_code, color_name, suitable_skin_tone, seasonal_palette, category FROM colors WHERE 1=1"
-            params = []
-            
-            if category:
-                base_query += " AND category = %s"
-                params.append(category)
-            
-            if skin_tone:
-                base_query += " AND (suitable_skin_tone ILIKE %s OR seasonal_palette ILIKE %s)"
-                params.extend([f'%{skin_tone}%', f'%{skin_tone}%'])
-            
-            base_query += " ORDER BY suitable_skin_tone, color_name LIMIT %s;"
-            params.append(limit)
-            
-            query = text(base_query)
-            result = db.execute(query, params)
-            results = result.fetchall()
-            
             colors = []
-            for row in results:
-                colors.append(ColorRecommendation(
-                    hex_code=row[0] if row[0] else "#000000",
-                    color_name=row[1] if row[1] else "Unknown Color",
-                    suitable_skin_tone=row[2] if row[2] else "Universal",
-                    seasonal_palette=row[3] if row[3] else "Universal",
-                    category=row[4] if row[4] else "recommended"
-                ))
             
-            return colors
+            # First try to get colors from color_palettes table
+            if skin_tone:
+                # Map skin tone to seasonal type if needed
+                seasonal_type = skin_tone
+                if "monk" in skin_tone.lower():
+                    monk_number = ''.join(filter(str.isdigit, skin_tone))
+                    if monk_number:
+                        monk_tone_formatted = f"Monk{monk_number.zfill(2)}"
+                        mapping = db.query(SkinToneMapping).filter(
+                            SkinToneMapping.monk_tone == monk_tone_formatted
+                        ).first()
+                        if mapping:
+                            seasonal_type = mapping.seasonal_type
+                
+                # Get colors from color_palettes table
+                palette = db.query(ColorPalette).filter(
+                    ColorPalette.skin_tone == seasonal_type
+                ).first()
+                
+                if palette and palette.flattering_colors:
+                    for color in palette.flattering_colors:
+                        if isinstance(color, dict) and 'hex' in color and 'name' in color:
+                            colors.append(ColorRecommendation(
+                                hex_code=color['hex'],
+                                color_name=color['name'],
+                                suitable_skin_tone=seasonal_type,
+                                seasonal_palette=seasonal_type,
+                                category="recommended"
+                            ))
+            
+            # If we don't have enough colors, try comprehensive_colors table
+            if len(colors) < limit:
+                remaining_limit = limit - len(colors)
+                
+                try:
+                    if skin_tone:
+                        # Handle JSON array properly for monk_tones with fallback
+                        comp_query = text("""
+                            SELECT DISTINCT hex_code, color_name, color_family, brightness_level
+                            FROM comprehensive_colors 
+                            WHERE hex_code IS NOT NULL 
+                            AND color_name IS NOT NULL
+                            AND (
+                                (monk_tones IS NOT NULL AND monk_tones::text ILIKE :monk_search)
+                                OR (seasonal_types IS NOT NULL AND seasonal_types::text ILIKE :seasonal_search)
+                                OR color_name ILIKE :name_search
+                            )
+                            ORDER BY color_name
+                            LIMIT :limit_val
+                        """)
+                        # Format skin_tone for different search types
+                        text_search = f'%{skin_tone}%'
+                        comp_result = db.execute(comp_query, {
+                            'monk_search': text_search,
+                            'seasonal_search': text_search, 
+                            'name_search': text_search, 
+                            'limit_val': remaining_limit
+                        })
+                    else:
+                        comp_query = text("""
+                            SELECT DISTINCT hex_code, color_name, color_family, brightness_level
+                            FROM comprehensive_colors 
+                            WHERE hex_code IS NOT NULL 
+                            AND color_name IS NOT NULL
+                            ORDER BY color_name
+                            LIMIT :limit_val
+                        """)
+                        comp_result = db.execute(comp_query, {'limit_val': remaining_limit})
+                    
+                    comp_colors = comp_result.fetchall()
+                    for row in comp_colors:
+                        # Avoid duplicates
+                        if not any(c.hex_code.lower() == row[0].lower() for c in colors):
+                            colors.append(ColorRecommendation(
+                                hex_code=row[0],
+                                color_name=row[1],
+                                suitable_skin_tone=skin_tone or "Universal",
+                                seasonal_palette=row[2] if row[2] else "Universal",
+                                category="recommended"
+                            ))
+                            
+                except Exception as comp_error:
+                    # Log the error but continue with fallback
+                    print(f"Comprehensive colors query failed: {comp_error}")
+                    # Try a simpler query without JSON operations
+                    try:
+                        simple_query = text("""
+                            SELECT DISTINCT hex_code, color_name, color_family, brightness_level
+                            FROM comprehensive_colors 
+                            WHERE hex_code IS NOT NULL 
+                            AND color_name IS NOT NULL
+                            ORDER BY color_name
+                            LIMIT :limit_val
+                        """)
+                        simple_result = db.execute(simple_query, {'limit_val': remaining_limit})
+                        simple_colors = simple_result.fetchall()
+                        for row in simple_colors:
+                            if not any(c.hex_code.lower() == row[0].lower() for c in colors):
+                                colors.append(ColorRecommendation(
+                                    hex_code=row[0],
+                                    color_name=row[1],
+                                    suitable_skin_tone="Universal",
+                                    seasonal_palette=row[2] if row[2] else "Universal",
+                                    category="recommended"
+                                ))
+                    except Exception as simple_error:
+                        print(f"Simple colors query also failed: {simple_error}")
+            
+            # If still not enough colors, get some basic colors from all palettes
+            if len(colors) < 10:
+                all_palettes = db.query(ColorPalette).limit(5).all()
+                for palette in all_palettes:
+                    if palette.flattering_colors:
+                        for color in palette.flattering_colors[:2]:  # Just 2 colors per palette
+                            if isinstance(color, dict) and 'hex' in color and 'name' in color:
+                                # Avoid duplicates
+                                if not any(c.hex_code.lower() == color['hex'].lower() for c in colors):
+                                    colors.append(ColorRecommendation(
+                                        hex_code=color['hex'],
+                                        color_name=color['name'],
+                                        suitable_skin_tone=palette.skin_tone,
+                                        seasonal_palette=palette.skin_tone,
+                                        category="recommended"
+                                    ))
+                                    if len(colors) >= limit:
+                                        break
+                    if len(colors) >= limit:
+                        break
+            
+            return colors[:limit]
             
         finally:
             db.close()
@@ -303,92 +406,125 @@ async def get_color_palettes_db(
     skin_tone: Optional[str] = Query(None, description="Monk skin tone (e.g., Monk05) or seasonal type"),
     limit: Optional[int] = Query(500, description="Number of colors to return")
 ):
-    """Get color palettes from database based on skin tone mapping"""
+    """Get color palettes from database based on skin tone mapping - using correct database tables"""
     if not skin_tone:
         raise HTTPException(status_code=400, detail="skin_tone parameter is required")
     
-    conn = connect_to_db()
-    
     try:
-        cursor = conn.cursor()
+        from database import SessionLocal, ColorPalette, SkinToneMapping
         
-        # Step 1: Determine seasonal type from Monk tone
-        seasonal_type = skin_tone
-        seasonal_type_map = {
-            'Monk01': 'Light Spring',
-            'Monk02': 'Light Spring', 
-            'Monk03': 'Clear Spring',
-            'Monk04': 'Warm Spring',
-            'Monk05': 'Soft Autumn',
-            'Monk06': 'Warm Autumn',
-            'Monk07': 'Deep Autumn',
-            'Monk08': 'Deep Winter',
-            'Monk09': 'Cool Winter',
-            'Monk10': 'Clear Winter'
-        }
-        
-        if skin_tone in seasonal_type_map:
-            seasonal_type = seasonal_type_map[skin_tone]
-        
-        # Step 2: Get colors from database for this seasonal type
-        query = """
-        SELECT hex_code, color_name, suitable_skin_tone, seasonal_palette, category
-        FROM colors 
-        WHERE (seasonal_palette ILIKE %s OR suitable_skin_tone ILIKE %s)
-        AND category = 'recommended'
-        AND hex_code IS NOT NULL
-        AND color_name IS NOT NULL
-        ORDER BY color_name
-        LIMIT %s;
-        """
-        
-        cursor.execute(query, (f'%{seasonal_type}%', f'%{seasonal_type}%', limit))
-        results = cursor.fetchall()
-        
-        # Format colors for frontend
-        colors_that_suit = []
-        for row in results:
-            colors_that_suit.append({
-                "name": row[1],  # color_name
-                "hex": row[0]   # hex_code
-            })
-        
-        # Step 3: Get colors to avoid
-        avoid_query = """
-        SELECT hex_code, color_name
-        FROM colors 
-        WHERE (seasonal_palette ILIKE %s OR suitable_skin_tone ILIKE %s)
-        AND category = 'avoid'
-        AND hex_code IS NOT NULL
-        AND color_name IS NOT NULL
-        ORDER BY color_name
-        LIMIT 20;
-        """
-        
-        cursor.execute(avoid_query, (f'%{seasonal_type}%', f'%{seasonal_type}%'))
-        avoid_results = cursor.fetchall()
-        
-        colors_to_avoid = []
-        for row in avoid_results:
-            colors_to_avoid.append({
-                "name": row[1],  # color_name
-                "hex": row[0]   # hex_code
-            })
-        
-        cursor.close()
-        conn.close()
-        
-        return {
-            "colors_that_suit": colors_that_suit,
-            "colors": colors_that_suit,  # Alias for compatibility
-            "colors_to_avoid": colors_to_avoid,
-            "seasonal_type": seasonal_type,
-            "monk_skin_tone": skin_tone,
-            "description": f"Based on your {seasonal_type} seasonal type and {skin_tone} skin tone, here are colors from our database that complement your complexion.",
-            "message": f"Showing {len(colors_that_suit)} recommended colors and {len(colors_to_avoid)} colors to avoid from our comprehensive database.",
-            "database_source": True
-        }
+        db = SessionLocal()
+        try:
+            # Step 1: Determine seasonal type from Monk tone
+            seasonal_type = skin_tone
+            seasonal_type_map = {
+                'Monk01': 'Light Spring',
+                'Monk02': 'Light Spring', 
+                'Monk03': 'Clear Spring',
+                'Monk04': 'Warm Spring',
+                'Monk05': 'Soft Autumn',
+                'Monk06': 'Warm Autumn',
+                'Monk07': 'Deep Autumn',
+                'Monk08': 'Deep Winter',
+                'Monk09': 'Cool Winter',
+                'Monk10': 'Clear Winter'
+            }
+            
+            if skin_tone in seasonal_type_map:
+                seasonal_type = seasonal_type_map[skin_tone]
+            elif "monk" in skin_tone.lower():
+                # Extract number and format
+                monk_number = ''.join(filter(str.isdigit, skin_tone))
+                if monk_number:
+                    monk_tone_formatted = f"Monk{monk_number.zfill(2)}"
+                    mapping = db.query(SkinToneMapping).filter(
+                        SkinToneMapping.monk_tone == monk_tone_formatted
+                    ).first()
+                    if mapping:
+                        seasonal_type = mapping.seasonal_type
+            
+            # Step 2: Get colors from color_palettes table
+            palette = db.query(ColorPalette).filter(
+                ColorPalette.skin_tone == seasonal_type
+            ).first()
+            
+            colors_that_suit = []
+            colors_to_avoid = []
+            
+            if palette:
+                # Extract flattering colors
+                if palette.flattering_colors:
+                    for color in palette.flattering_colors:
+                        if isinstance(color, dict) and 'hex' in color and 'name' in color:
+                            colors_that_suit.append({
+                                "name": color['name'],
+                                "hex": color['hex']
+                            })
+                            if len(colors_that_suit) >= limit:
+                                break
+                
+                # Extract colors to avoid
+                if palette.colors_to_avoid:
+                    for color in palette.colors_to_avoid:
+                        if isinstance(color, dict) and 'hex' in color and 'name' in color:
+                            colors_to_avoid.append({
+                                "name": color['name'],
+                                "hex": color['hex']
+                            })
+                            if len(colors_to_avoid) >= 20:
+                                break
+            
+            # If we don't have enough colors, try to get some basic colors from other palettes
+            if len(colors_that_suit) < 10:
+                all_palettes = db.query(ColorPalette).limit(3).all()
+                for other_palette in all_palettes:
+                    if other_palette.skin_tone != seasonal_type and other_palette.flattering_colors:
+                        for color in other_palette.flattering_colors[:2]:  # Just 2 colors per palette
+                            if isinstance(color, dict) and 'hex' in color and 'name' in color:
+                                # Avoid duplicates
+                                if not any(c['hex'].lower() == color['hex'].lower() for c in colors_that_suit):
+                                    colors_that_suit.append({
+                                        "name": color['name'],
+                                        "hex": color['hex']
+                                    })
+                                    if len(colors_that_suit) >= limit:
+                                        break
+                    if len(colors_that_suit) >= limit:
+                        break
+            
+            return {
+                "colors_that_suit": colors_that_suit,
+                "colors": colors_that_suit,  # Alias for compatibility
+                "colors_to_avoid": colors_to_avoid,
+                "seasonal_type": seasonal_type,
+                "monk_skin_tone": skin_tone,
+                "description": f"Based on your {seasonal_type} seasonal type and {skin_tone} skin tone, here are colors from our database that complement your complexion.",
+                "message": f"Showing {len(colors_that_suit)} recommended colors and {len(colors_to_avoid)} colors to avoid from our comprehensive database.",
+                "database_source": True
+            }
+            
+        finally:
+            db.close()
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching color palettes: {e}")
+        # Fallback: return some basic colors
+        basic_colors = [
+            {"name": "Navy Blue", "hex": "#002D72"},
+            {"name": "Forest Green", "hex": "#205C40"},
+            {"name": "Burgundy", "hex": "#890C58"},
+            {"name": "Charcoal", "hex": "#36454F"},
+            {"name": "Deep Teal", "hex": "#00594C"},
+            {"name": "Plum", "hex": "#86647A"}
+        ]
+        
+        return {
+            "colors_that_suit": basic_colors,
+            "colors": basic_colors,
+            "colors_to_avoid": [],
+            "seasonal_type": skin_tone or "Universal",
+            "monk_skin_tone": skin_tone,
+            "description": f"Basic color palette for {skin_tone or 'unknown skin tone'} - database error occurred",
+            "message": f"Showing {len(basic_colors)} basic colors due to database error: {str(e)}",
+            "database_source": False
+        }
 
