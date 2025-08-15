@@ -1,7 +1,7 @@
-# Use Python 3.11 slim image for better performance and smaller size
-FROM python:3.11-slim
+# Use Python 3.11 full image for better OpenCV compatibility
+FROM python:3.11
 
-# Set environment variables
+# Set environment variables to avoid OpenGL issues
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -11,34 +11,27 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FONTCONFIG_PATH=/tmp/fontconfig \
     FONTCONFIG_FILE=/tmp/fontconfig/fonts.conf \
     XDG_CACHE_HOME=/tmp \
-    PORT=8000
+    PORT=8000 \
+    QT_QPA_PLATFORM=offscreen \
+    DISPLAY=:99 \
+    OPENCV_LOG_LEVEL=ERROR
 
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies for OpenCV and other packages
+# Install minimal system dependencies including OpenCV requirements
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    make \
-    cmake \
     build-essential \
-    pkg-config \
-    libx11-dev \
-    libatlas-base-dev \
-    libgtk-3-dev \
-    libboost-python-dev \
-    libgl1-mesa-glx \
+    curl \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    libfontconfig1 \
-    curl \
-    wget \
-    unzip \
-    bzip2 \
+    libgthread-2.0-0 \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching

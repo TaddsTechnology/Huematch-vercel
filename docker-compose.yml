@@ -40,7 +40,9 @@ services:
 
   # Backend API service
   backend:
-    image: docker.io/newbie028/ai-fashion-backend:latest
+    build:
+      context: ./backend/prods_fastapi
+      dockerfile: Dockerfile
     container_name: ai-fashion-backend
     ports:
       - "8000:8000"

@@ -209,49 +209,81 @@ async def get_color_by_hex(hex_code: str):
 
 @color_router.get("/all", response_model=List[ColorRecommendation])
 async def get_all_colors(
-    limit: Optional[int] = Query(100, description="Number of colors to return"),
+    limit: Optional[int] = Query(500, description="Number of colors to return"),
     category: Optional[str] = Query(None, description="Filter by category"),
     skin_tone: Optional[str] = Query(None, description="Filter by skin tone")
 ):
     """Get all colors with optional filters"""
-    conn = connect_to_db()
-    
     try:
-        cursor = conn.cursor()
+        from database import SessionLocal
+        from sqlalchemy import text
+        import json
         
-        base_query = "SELECT hex_code, color_name, suitable_skin_tone, seasonal_palette, category FROM colors WHERE 1=1"
-        params = []
-        
-        if category:
-            base_query += " AND category = %s"
-            params.append(category)
-        
-        if skin_tone:
-            base_query += " AND (suitable_skin_tone ILIKE %s OR seasonal_palette ILIKE %s)"
-            params.extend([f'%{skin_tone}%', f'%{skin_tone}%'])
-        
-        base_query += " ORDER BY suitable_skin_tone, color_name LIMIT %s;"
-        params.append(limit)
-        
-        cursor.execute(base_query, params)
-        results = cursor.fetchall()
-        
-        colors = []
-        for row in results:
-            colors.append(ColorRecommendation(
-                hex_code=row[0],
-                color_name=row[1],
-                suitable_skin_tone=row[2],
-                seasonal_palette=row[3],
-                category=row[4]
-            ))
-        
-        cursor.close()
-        conn.close()
-        
-        return colors
-        
+        db = SessionLocal()
+        try:
+            base_query = "SELECT hex_code, color_name, suitable_skin_tone, seasonal_palette, category FROM colors WHERE 1=1"
+            params = []
+            
+            if category:
+                base_query += " AND category = %s"
+                params.append(category)
+            
+            if skin_tone:
+                base_query += " AND (suitable_skin_tone ILIKE %s OR seasonal_palette ILIKE %s)"
+                params.extend([f'%{skin_tone}%', f'%{skin_tone}%'])
+            
+            base_query += " ORDER BY suitable_skin_tone, color_name LIMIT %s;"
+            params.append(limit)
+            
+            query = text(base_query)
+            result = db.execute(query, params)
+            results = result.fetchall()
+            
+            colors = []
+            for row in results:
+                colors.append(ColorRecommendation(
+                    hex_code=row[0] if row[0] else "#000000",
+                    color_name=row[1] if row[1] else "Unknown Color",
+                    suitable_skin_tone=row[2] if row[2] else "Universal",
+                    seasonal_palette=row[3] if row[3] else "Universal",
+                    category=row[4] if row[4] else "recommended"
+                ))
+            
+            return colors
+            
+        finally:
+            db.close()
+            
     except Exception as e:
+        # Fallback: Try to get colors from processed data
+        try:
+            import os
+            import json
+            processed_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'processed_data', 'seasonal_palettes.json')
+            
+            if os.path.exists(processed_data_path):
+                with open(processed_data_path, 'r') as f:
+                    seasonal_data = json.load(f)
+                
+                fallback_colors = []
+                for season, palette in seasonal_data.items():
+                    if isinstance(palette, dict) and 'recommended' in palette:
+                        for color in palette['recommended']:
+                            if isinstance(color, dict) and 'color' in color and 'name' in color:
+                                fallback_colors.append(ColorRecommendation(
+                                    hex_code=color['color'],
+                                    color_name=color['name'],
+                                    suitable_skin_tone=season,
+                                    seasonal_palette=season,
+                                    category="recommended"
+                                ))
+                
+                if fallback_colors:
+                    return fallback_colors[:limit]
+                    
+        except Exception as fallback_e:
+            pass
+            
         raise HTTPException(status_code=500, detail=f"Error fetching colors: {e}")
 
 # Add a separate router for color palettes

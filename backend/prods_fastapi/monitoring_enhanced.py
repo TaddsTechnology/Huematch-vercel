@@ -24,8 +24,7 @@ from contextlib import asynccontextmanager
 
 import psutil
 from fastapi import Request, Response, FastAPI
-from fastapi.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware as StarletteBaseMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 from starlette.types import ASGIApp
 
@@ -1084,15 +1083,22 @@ def setup_default_alerts():
     ))
 
 
+def setup_monitoring_middleware(app: FastAPI):
+    """Setup monitoring middleware before application startup"""
+    try:
+        # Register middleware for request metrics
+        app.add_middleware(
+            RequestMetricsMiddleware,
+            metrics_registry=metrics_registry,
+            trace_manager=trace_manager
+        )
+        logger.info("📊 Monitoring middleware added")
+    except Exception as e:
+        logger.error(f"Failed to add monitoring middleware: {e}")
+        raise
+
 async def setup_monitoring(app: FastAPI):
-    """Setup monitoring for a FastAPI app"""
-    # Register middleware for request metrics
-    app.add_middleware(
-        RequestMetricsMiddleware,
-        metrics_registry=metrics_registry,
-        trace_manager=trace_manager
-    )
-    
+    """Setup monitoring systems for a FastAPI app (excluding middleware)"""
     # Store references in app state
     app.state.metrics_registry = metrics_registry
     app.state.trace_manager = trace_manager

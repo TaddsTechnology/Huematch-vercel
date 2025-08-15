@@ -19,5 +19,5 @@ echo "Current directory: $(pwd)"
 echo "Available Python modules:"
 python -c "import sys; print('\n'.join(sys.path))"
 
-# Start the FastAPI application
-exec python -m uvicorn prods_fastapi.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start the FastAPI application directly with uvicorn and proper port binding
+exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}

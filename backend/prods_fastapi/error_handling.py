@@ -21,10 +21,9 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from dataclasses import dataclass
 
 from fastapi import Request, Response, HTTPException
-from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware as StarletteBaseMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 
