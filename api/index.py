@@ -30,7 +30,12 @@ app = FastAPI(
 # Configure CORS for Vercel deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # More permissive for Vercel
+    allow_origins=[
+        "*",  # More permissive for Vercel
+        "https://huematch-vercel.vercel.app",  # Explicit frontend domain
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],

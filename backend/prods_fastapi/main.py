@@ -131,6 +131,7 @@ app.add_middleware(
         "http://localhost:5173", 
         "https://app.taddstechnology.com",
         "https://ai-fashion-backend-d9nj.onrender.com",
+        "https://huematch-vercel.vercel.app",  # Frontend domain
         "http://localhost:8000",  # For local development
         "https://localhost:8000",  # For HTTPS local development
     ],
