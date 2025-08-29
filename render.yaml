@@ -1,24 +1,7 @@
-services:
-  - type: web
-    name: ai-fashion-backend
-    env: python
-    plan: free
-    buildCommand: "python3.9 -m pip install --upgrade pip && pip install -r requirements.txt"
-    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
-    healthCheckPath: /health
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.9.20"
-      - key: DATABASE_URL
-        value: "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: ai-fashion-redis
-          property: connectionString
-      - key: CLOUDINARY_URL
-        sync: false  # You'll set this manually in Render dashboard
-
-  - type: redis
-    name: ai-fashion-redis
-    plan: starter
+# Render.yaml removed - manual setup required
+# Go to render.com dashboard and:
+# 1. Delete existing service
+# 2. Create new Web Service  
+# 3. Select Python 3.9 environment
+# 4. Set build command: pip install -r requirements.txt
+# 5. Set start command: uvicorn main:app --host 0.0.0.0 --port $PORT
