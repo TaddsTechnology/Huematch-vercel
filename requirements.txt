@@ -36,8 +36,8 @@ opt-einsum>=3.3.0
 termcolor>=2.4.0
 wrapt>=1.16.0
 
-# MediaPipe for advanced face detection (Python 3.13 compatible)
-mediapipe>=0.10.14
+# MediaPipe for advanced face detection - REMOVED (no Python 3.13 support yet)
+# mediapipe>=0.10.14  # Will be re-added when Python 3.13 support is available
 
 # Additional ML utilities
 pandas>=2.2.2
