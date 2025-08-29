@@ -142,13 +142,29 @@ def get_color_recommendations(
     try:
         DATABASE_URL = os.getenv("DATABASE_URL")
         if not DATABASE_URL:
-            # Fallback colors without database
+            # Comprehensive fallback colors without database
             fallback_colors = [
-                {"name": "Navy Blue", "hex": "#000080", "source": "fallback"},
-                {"name": "Forest Green", "hex": "#228B22", "source": "fallback"},
-                {"name": "Burgundy", "hex": "#800020", "source": "fallback"},
-                {"name": "Charcoal Gray", "hex": "#36454F", "source": "fallback"},
-                {"name": "Cream White", "hex": "#F5F5DC", "source": "fallback"}
+                # Universal colors that work for most skin tones
+                {"name": "Navy Blue", "hex": "#000080", "color_family": "blue", "source": "fallback"},
+                {"name": "Forest Green", "hex": "#228B22", "color_family": "green", "source": "fallback"},
+                {"name": "Burgundy", "hex": "#800020", "color_family": "red", "source": "fallback"},
+                {"name": "Charcoal Gray", "hex": "#36454F", "color_family": "gray", "source": "fallback"},
+                {"name": "Cream White", "hex": "#F5F5DC", "color_family": "white", "source": "fallback"},
+                {"name": "Royal Blue", "hex": "#4169E1", "color_family": "blue", "source": "fallback"},
+                {"name": "Emerald Green", "hex": "#50C878", "color_family": "green", "source": "fallback"},
+                {"name": "Deep Purple", "hex": "#483D8B", "color_family": "purple", "source": "fallback"},
+                {"name": "Coral", "hex": "#FF7F50", "color_family": "orange", "source": "fallback"},
+                {"name": "Dusty Rose", "hex": "#DCAE96", "color_family": "pink", "source": "fallback"},
+                {"name": "Olive Green", "hex": "#808000", "color_family": "green", "source": "fallback"},
+                {"name": "Teal", "hex": "#008080", "color_family": "blue", "source": "fallback"},
+                {"name": "Mauve", "hex": "#E0B0FF", "color_family": "purple", "source": "fallback"},
+                {"name": "Copper", "hex": "#B87333", "color_family": "brown", "source": "fallback"},
+                {"name": "Sage Green", "hex": "#9CAF88", "color_family": "green", "source": "fallback"},
+                {"name": "Soft Yellow", "hex": "#FFFFE0", "color_family": "yellow", "source": "fallback"},
+                {"name": "Plum", "hex": "#8E4585", "color_family": "purple", "source": "fallback"},
+                {"name": "Camel", "hex": "#C19A6B", "color_family": "brown", "source": "fallback"},
+                {"name": "Steel Blue", "hex": "#4682B4", "color_family": "blue", "source": "fallback"},
+                {"name": "Champagne", "hex": "#F7E7CE", "color_family": "beige", "source": "fallback"}
             ]
             return {
                 "colors": fallback_colors,
@@ -298,26 +314,56 @@ def get_apparel(
     }
 
 def simple_skin_analysis(image_array: np.ndarray) -> Dict:
-    """Ultra-simple skin tone analysis without OpenCV."""
+    """Improved lightweight skin tone analysis."""
     try:
-        # Get center region of image
+        # Get multiple regions for better analysis
         h, w = image_array.shape[:2]
-        center_region = image_array[h//4:3*h//4, w//4:3*w//4]
         
-        # Calculate average color
-        avg_color = np.mean(center_region.reshape(-1, 3), axis=0)
+        # Sample from center regions (avoid edges)
+        regions = [
+            image_array[h//3:2*h//3, w//3:2*w//3],  # Center
+            image_array[h//4:3*h//4, w//4:3*w//4],  # Slightly larger center
+            image_array[2*h//5:3*h//5, 2*w//5:3*w//5]  # Core center
+        ]
         
-        # Find closest Monk tone (simple distance)
+        # Calculate weighted average (more weight to core center)
+        weights = [0.5, 0.3, 0.2]
+        weighted_colors = []
+        
+        for i, region in enumerate(regions):
+            region_avg = np.mean(region.reshape(-1, 3), axis=0)
+            weighted_colors.append(region_avg * weights[i])
+        
+        avg_color = np.sum(weighted_colors, axis=0)
+        
+        # Filter out extreme values (too bright/dark for skin)
+        brightness = np.mean(avg_color)
+        if brightness < 50:  # Too dark - likely shadow
+            avg_color = avg_color * 1.2  # Brighten slightly
+        elif brightness > 230:  # Too bright - likely overexposed
+            avg_color = avg_color * 0.8  # Darken slightly
+        
+        # Find closest Monk tone with weighted distance
         min_distance = float('inf')
         closest_monk = "Monk 5"  # Default
+        confidence = 0.5
         
         for monk_name, hex_color in MONK_SKIN_TONES.items():
             monk_rgb = np.array(hex_to_rgb(hex_color))
-            distance = np.sqrt(np.sum((avg_color - monk_rgb) ** 2))
+            
+            # Weighted Euclidean distance (emphasize luminance)
+            r_diff = (avg_color[0] - monk_rgb[0]) * 0.3
+            g_diff = (avg_color[1] - monk_rgb[1]) * 0.59  # Green channel most important
+            b_diff = (avg_color[2] - monk_rgb[2]) * 0.11
+            
+            distance = np.sqrt(r_diff**2 + g_diff**2 + b_diff**2)
             
             if distance < min_distance:
                 min_distance = distance
                 closest_monk = monk_name
+        
+        # Calculate confidence based on distance
+        confidence = max(0.5, min(0.95, 1.0 - (min_distance / 255.0)))
         
         # Format response
         monk_number = closest_monk.split()[1]
@@ -330,9 +376,10 @@ def simple_skin_analysis(image_array: np.ndarray) -> Dict:
             'monk_hex': MONK_SKIN_TONES[closest_monk],
             'derived_hex_code': derived_hex,
             'dominant_rgb': avg_color.astype(int).tolist(),
-            'confidence': 0.75,
+            'confidence': round(confidence, 2),
             'success': True,
-            'method': 'ultra_light_analysis'
+            'method': 'improved_weighted_analysis',
+            'brightness_level': round(brightness, 1)
         }
         
     except Exception as e:
