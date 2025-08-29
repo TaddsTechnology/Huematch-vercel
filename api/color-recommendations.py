@@ -1,22 +1,8 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-import json
 import os
-import logging
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI()
-
-# Your PostgreSQL database connection
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://fashion_4vl9_user:FCxnsalymIDJ6jW06YpF6gN3ueSmXS2Q@dpg-d2ff1remcj7s73eojhsg-a.oregon-postgres.render.com/fashion_4vl9"
-)
 
 @app.get("/api/color-recommendations")
 def get_color_recommendations(
@@ -24,105 +10,83 @@ def get_color_recommendations(
     hex_color: str = Query(None),
     limit: int = Query(50, ge=10, le=100)
 ):
-    """Enhanced color recommendations endpoint using your PostgreSQL database."""
+    """Color recommendations endpoint with database fallback."""
     try:
+        # Try to import and use database
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        
+        DATABASE_URL = os.getenv(
+            "DATABASE_URL", 
+            "postgresql://fashion_4vl9_user:FCxnsalymIDJ6jW06YpF6gN3ueSmXS2Q@dpg-d2ff1remcj7s73eojhsg-a.oregon-postgres.render.com/fashion_4vl9"
+        )
         
         engine = create_engine(DATABASE_URL)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         db = SessionLocal()
         
         try:
-            all_colors = []
-            seasonal_type = "Universal"
-            sources_used = []
+            cursor = db.connection().connection.cursor()
             
-            if skin_tone:
-                cursor = db.connection().connection.cursor()
-                
-                # Get seasonal type mapping
-                cursor.execute("""
-                    SELECT seasonal_type 
-                    FROM skin_tone_mappings 
-                    WHERE monk_tone = %s
-                """, [skin_tone])
-                
-                mapping = cursor.fetchone()
-                if mapping:
-                    seasonal_type = mapping[0]
-                    logger.info(f"Found seasonal type: {seasonal_type} for {skin_tone}")
-                
-                # Get colors from comprehensive_colors
-                cursor.execute("""
-                    SELECT DISTINCT hex_code, color_name, color_family, brightness_level
-                    FROM comprehensive_colors 
-                    WHERE monk_tones::text LIKE %s
-                    AND hex_code IS NOT NULL
-                    AND color_name IS NOT NULL
-                    ORDER BY color_name
-                    LIMIT 40
-                """, [f'%{skin_tone}%'])
-                
-                comp_results = cursor.fetchall()
-                for row in comp_results:
-                    all_colors.append({
+            # Try to get colors from database
+            cursor.execute("""
+                SELECT DISTINCT hex_code, color_name, color_family 
+                FROM comprehensive_colors 
+                WHERE hex_code IS NOT NULL
+                AND color_name IS NOT NULL
+                ORDER BY color_name
+                LIMIT %s
+            """, [limit])
+            
+            results = cursor.fetchall()
+            
+            if results:
+                colors = []
+                for row in results:
+                    colors.append({
                         "name": row[1],
                         "hex": row[0],
-                        "source": "comprehensive_colors",
                         "color_family": row[2] or "unknown",
-                        "brightness_level": row[3] or "medium",
-                        "monk_compatible": skin_tone
+                        "source": "database"
                     })
                 
-                if comp_results:
-                    sources_used.append(f"comprehensive_colors ({len(comp_results)} colors)")
-                    logger.info(f"Added {len(comp_results)} colors from comprehensive_colors")
-            
-            # Add default colors if needed
-            if len(all_colors) < 10:
-                default_colors = [
-                    {"name": "Navy Blue", "hex": "#001f3f", "source": "default"},
-                    {"name": "Forest Green", "hex": "#2d5016", "source": "default"},
-                    {"name": "Deep Red", "hex": "#b91c1c", "source": "default"},
-                    {"name": "Soft Pink", "hex": "#f8bbd9", "source": "default"},
-                    {"name": "Warm Brown", "hex": "#8b4513", "source": "default"},
-                ]
-                all_colors.extend(default_colors)
-            
-            # Apply limit
-            limited_colors = all_colors[:limit]
-            
-            return {
-                "colors": limited_colors,
-                "total_colors": len(limited_colors),
-                "skin_tone": skin_tone,
-                "seasonal_type": seasonal_type,
-                "sources_used": sources_used,
-                "status": "success"
-            }
-            
+                return {
+                    "colors": colors,
+                    "total_colors": len(colors),
+                    "skin_tone": skin_tone,
+                    "status": "success_db"
+                }
+        
         finally:
             db.close()
             
     except Exception as e:
-        logger.error(f"Error in color recommendations: {e}")
-        # Return fallback colors
-        fallback_colors = [
-            {"name": "Classic Navy", "hex": "#001f3f", "source": "fallback"},
-            {"name": "Forest Green", "hex": "#2d5016", "source": "fallback"},
-            {"name": "Deep Burgundy", "hex": "#800020", "source": "fallback"},
-            {"name": "Soft Coral", "hex": "#ff7f7f", "source": "fallback"},
-            {"name": "Warm Taupe", "hex": "#8b7355", "source": "fallback"},
-        ]
-        
-        return {
-            "colors": fallback_colors,
-            "total_colors": len(fallback_colors),
-            "skin_tone": skin_tone or "unknown",
-            "seasonal_type": "Universal",
-            "sources_used": ["fallback"],
-            "status": "fallback",
-            "error": str(e)
-        }
+        # Database failed, return fallback colors
+        pass
+    
+    # Fallback colors for different skin tones
+    fallback_colors = [
+        {"name": "Classic Navy", "hex": "#001f3f", "source": "fallback"},
+        {"name": "Forest Green", "hex": "#2d5016", "source": "fallback"},
+        {"name": "Deep Burgundy", "hex": "#800020", "source": "fallback"},
+        {"name": "Soft Coral", "hex": "#ff7f7f", "source": "fallback"},
+        {"name": "Warm Taupe", "hex": "#8b7355", "source": "fallback"},
+        {"name": "Royal Blue", "hex": "#4169e1", "source": "fallback"},
+        {"name": "Emerald", "hex": "#50c878", "source": "fallback"},
+        {"name": "Dusty Rose", "hex": "#dcae96", "source": "fallback"},
+        {"name": "Golden Brown", "hex": "#996515", "source": "fallback"},
+        {"name": "Plum", "hex": "#dda0dd", "source": "fallback"}
+    ]
+    
+    # Filter based on limit
+    limited_colors = fallback_colors[:limit]
+    
+    return {
+        "colors": limited_colors,
+        "total_colors": len(limited_colors),
+        "skin_tone": skin_tone or "universal",
+        "status": "fallback"
+    }
 
 # Export for Vercel
 handler = app
