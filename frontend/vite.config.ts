@@ -46,6 +46,7 @@ export default defineConfig({
     sourcemap: false,
     minify: 'esbuild',
     target: 'es2015',
+    emptyOutDir: true,
     commonjsOptions: {
       include: [/node_modules/],
     },
@@ -54,7 +55,10 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom']
-        }
+        },
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       },
       onwarn(warning, warn) {
         // Suppress specific warnings
