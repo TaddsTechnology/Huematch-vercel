@@ -28,18 +28,36 @@ app = FastAPI(
     description="Lightweight AI Fashion API for 512MB deployment"
 )
 
-# Configure CORS - Add your Vercel frontend URL here
+# Configure CORS - Proper frontend access configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173", 
-        "https://*.vercel.app",  # Your Vercel frontend
-        "*"  # For testing - remove in production
+        "https://huematch-vercel.vercel.app",  # Your exact Vercel frontend
+        "https://app.taddstechnology.com",
+        "https://ai-fashion-backend-d9nj.onrender.com",
+        "http://localhost:8000",
+        "https://localhost:8000"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "accept",
+        "accept-language", 
+        "content-language",
+        "content-type",
+        "authorization",
+        "x-requested-with",
+        "cache-control",
+        "pragma",
+        "origin",
+        "user-agent",
+        "dnt",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "sec-fetch-dest"
+    ],
     max_age=3600
 )
 
@@ -94,7 +112,7 @@ def home():
         "message": "AI Fashion API - Ultra Light Version", 
         "status": "healthy",
         "memory_optimized": True,
-        "endpoints": ["/health", "/api/color-recommendations", "/data/", "/apparel", "/analyze-skin-tone"]
+        "endpoints": ["/health", "/api/color-recommendations", "/api/color-palettes-db", "/data/", "/apparel", "/analyze-skin-tone"]
     }
 
 @app.get("/health")
@@ -186,6 +204,185 @@ def get_color_recommendations(
             "total_colors": len(fallback_colors),
             "monk_skin_tone": skin_tone,
             "error": str(e)
+        }
+
+@app.get("/api/color-palettes-db")
+def get_color_palettes_db(
+    skin_tone: str = Query(None, description="Skin tone filter (e.g., Light Spring, Monk05)"),
+    limit: int = Query(100, ge=10, le=500),
+    category: str = Query(None, description="Category filter (recommended/avoid)"),
+    color_family: str = Query(None, description="Color family filter")
+):
+    """Enhanced color palettes from database matching frontend expectations."""
+    try:
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        if not DATABASE_URL:
+            # Fallback color palette without database
+            seasonal_types = {
+                'Monk01': 'Light Spring', 'Monk02': 'Light Spring', 'Monk03': 'Clear Spring',
+                'Monk04': 'Warm Spring', 'Monk05': 'Soft Autumn', 'Monk06': 'Warm Autumn',
+                'Monk07': 'Deep Autumn', 'Monk08': 'Deep Winter', 'Monk09': 'Cool Winter', 'Monk10': 'Clear Winter'
+            }
+            seasonal_type = seasonal_types.get(skin_tone, 'Universal')
+            
+            # Basic color recommendations by seasonal type
+            color_recommendations = {
+                'Light Spring': [
+                    {'name': 'Soft Peach', 'hex': '#FFCBA4'},
+                    {'name': 'Light Coral', 'hex': '#F08080'},
+                    {'name': 'Powder Blue', 'hex': '#B0E0E6'},
+                    {'name': 'Mint Green', 'hex': '#98FB98'},
+                    {'name': 'Lavender', 'hex': '#E6E6FA'}
+                ],
+                'Clear Spring': [
+                    {'name': 'Bright Red', 'hex': '#FF0000'},
+                    {'name': 'Electric Blue', 'hex': '#0080FF'},
+                    {'name': 'Emerald Green', 'hex': '#50C878'},
+                    {'name': 'Hot Pink', 'hex': '#FF69B4'},
+                    {'name': 'Bright Yellow', 'hex': '#FFFF00'}
+                ],
+                'Warm Spring': [
+                    {'name': 'Warm Coral', 'hex': '#FF7F50'},
+                    {'name': 'Golden Yellow', 'hex': '#FFD700'},
+                    {'name': 'Warm Brown', 'hex': '#D2691E'},
+                    {'name': 'Peach', 'hex': '#FFCBA4'},
+                    {'name': 'Warm Green', 'hex': '#9ACD32'}
+                ],
+                'Soft Autumn': [
+                    {'name': 'Muted Gold', 'hex': '#CFB53B'},
+                    {'name': 'Sage Green', 'hex': '#87A96B'},
+                    {'name': 'Warm Taupe', 'hex': '#8B7765'},
+                    {'name': 'Dusty Rose', 'hex': '#C08081'},
+                    {'name': 'Camel', 'hex': '#C19A6B'}
+                ],
+                'Universal': [
+                    {'name': 'Navy Blue', 'hex': '#000080'},
+                    {'name': 'Forest Green', 'hex': '#228B22'},
+                    {'name': 'Burgundy', 'hex': '#800020'},
+                    {'name': 'Charcoal', 'hex': '#36454F'},
+                    {'name': 'Cream', 'hex': '#F5F5DC'}
+                ]
+            }
+            
+            colors = color_recommendations.get(seasonal_type, color_recommendations['Universal'])
+            return {
+                'colors_that_suit': colors,
+                'colors': colors,
+                'colors_to_avoid': [],
+                'seasonal_type': seasonal_type,
+                'monk_skin_tone': skin_tone,
+                'description': f'Color recommendations for {seasonal_type} seasonal type',
+                'message': f'Found {len(colors)} color recommendations (fallback mode)',
+                'database_source': False
+            }
+        
+        # Database query
+        engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        db = SessionLocal()
+        
+        try:
+            cursor = db.connection().connection.cursor()
+            
+            # Build the query based on parameters
+            query = """
+                SELECT DISTINCT hex_code, color_name, category, color_family,
+                       seasonal_palette, suitable_skin_tone
+                FROM comprehensive_colors 
+                WHERE hex_code IS NOT NULL 
+                AND color_name IS NOT NULL
+            """
+            
+            params = []
+            
+            if skin_tone:
+                # Handle both seasonal types and Monk tones
+                if 'Monk' in skin_tone:
+                    query += " AND monk_tones::text LIKE %s"
+                    params.append(f'%{skin_tone}%')
+                else:
+                    query += " AND seasonal_palette LIKE %s"
+                    params.append(f'%{skin_tone}%')
+            
+            if category:
+                query += " AND category = %s"
+                params.append(category)
+                
+            if color_family:
+                query += " AND color_family LIKE %s"
+                params.append(f'%{color_family}%')
+            
+            query += " ORDER BY color_name LIMIT %s"
+            params.append(limit)
+            
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            
+            # Process results
+            recommended_colors = []
+            colors_to_avoid = []
+            
+            for row in results:
+                color_data = {
+                    'name': row[1],
+                    'hex': row[0],
+                    'color_family': row[3] or 'unknown',
+                    'seasonal_palette': row[4] or 'universal',
+                    'source': 'database'
+                }
+                
+                if row[2] == 'avoid':
+                    colors_to_avoid.append(color_data)
+                else:
+                    recommended_colors.append(color_data)
+            
+            # Determine seasonal type
+            seasonal_types = {
+                'Monk01': 'Light Spring', 'Monk02': 'Light Spring', 'Monk03': 'Clear Spring',
+                'Monk04': 'Warm Spring', 'Monk05': 'Soft Autumn', 'Monk06': 'Warm Autumn',
+                'Monk07': 'Deep Autumn', 'Monk08': 'Deep Winter', 'Monk09': 'Cool Winter', 'Monk10': 'Clear Winter'
+            }
+            seasonal_type = seasonal_types.get(skin_tone, skin_tone or 'Universal')
+            
+            return {
+                'colors_that_suit': recommended_colors,
+                'colors': recommended_colors,
+                'colors_to_avoid': colors_to_avoid,
+                'seasonal_type': seasonal_type,
+                'monk_skin_tone': skin_tone,
+                'description': f'Database colors for {seasonal_type} seasonal type',
+                'message': f'Found {len(recommended_colors)} recommended colors and {len(colors_to_avoid)} colors to avoid',
+                'database_source': True
+            }
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Color palettes DB error: {e}")
+        # Fallback response
+        seasonal_types = {
+            'Monk01': 'Light Spring', 'Monk02': 'Light Spring', 'Monk03': 'Clear Spring',
+            'Monk04': 'Warm Spring', 'Monk05': 'Soft Autumn', 'Monk06': 'Warm Autumn',
+            'Monk07': 'Deep Autumn', 'Monk08': 'Deep Winter', 'Monk09': 'Cool Winter', 'Monk10': 'Clear Winter'
+        }
+        seasonal_type = seasonal_types.get(skin_tone, 'Universal')
+        
+        fallback_colors = [
+            {'name': 'Navy Blue', 'hex': '#000080', 'source': 'fallback_error'},
+            {'name': 'Forest Green', 'hex': '#228B22', 'source': 'fallback_error'},
+            {'name': 'Burgundy', 'hex': '#800020', 'source': 'fallback_error'}
+        ]
+        
+        return {
+            'colors_that_suit': fallback_colors,
+            'colors': fallback_colors,
+            'colors_to_avoid': [],
+            'seasonal_type': seasonal_type,
+            'monk_skin_tone': skin_tone,
+            'message': 'Fallback colors due to database error',
+            'error': str(e),
+            'database_source': False
         }
 
 @app.get("/data/")
