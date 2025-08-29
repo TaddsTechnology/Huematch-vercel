@@ -44,17 +44,19 @@ app = FastAPI(
     description="Lightweight AI Fashion API for 512MB deployment"
 )
 
-# Configure CORS - Add your Vercel frontend URL here
+# Configure CORS - Updated for Vercel deployment
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://localhost:5173", 
-        "https://*.vercel.app",  # Your Vercel frontend
-        "*"  # For testing - remove in production
+        "http://localhost:5173",
+        "https://*.vercel.app",
+        "https://vercel.app",
+        "https://devhue.onrender.com",
+        "*"  # Allow all origins for now - can be restricted later
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     max_age=3600
 )
