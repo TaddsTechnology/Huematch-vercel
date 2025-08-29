@@ -22,18 +22,20 @@ import cloudinary
 import cloudinary.uploader
 from datetime import datetime
 
-# Configure Cloudinary if URL is provided
-cloudinary_url = os.getenv("CLOUDINARY_URL")
-if cloudinary_url:
-    cloudinary.config(
-        cloud_name=cloudinary_url.split('@')[1].split('.')[0],
-        api_key=cloudinary_url.split('://')[1].split(':')[0],
-        api_secret=cloudinary_url.split('://')[1].split(':')[1].split('@')[0]
-    )
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configure Cloudinary if URL is provided
+try:
+    cloudinary_url = os.getenv("CLOUDINARY_URL")
+    if cloudinary_url:
+        import cloudinary.config
+        cloudinary.config(
+            cloudinary_url=cloudinary_url
+        )
+except Exception as e:
+    logger.warning(f"Cloudinary config failed: {e}")
 
 # Create FastAPI app
 app = FastAPI(

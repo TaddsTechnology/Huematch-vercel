@@ -1,17 +1,17 @@
-# Ultra-minimal requirements for Render Python 3.9
-fastapi==0.68.0
-uvicorn==0.15.0
-pydantic==1.8.2
-python-multipart==0.0.5
-requests==2.26.0
-webcolors==1.11.1
-Pillow==8.3.2
-numpy==1.21.6
-psycopg2-binary==2.9.1
-sqlalchemy==1.4.23
-python-dotenv==0.19.0
-redis==3.5.3
-cloudinary==1.26.0
+# Python 3.13.4 compatible requirements
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.12
+requests==2.32.3
+webcolors==24.11.1
+Pillow==11.1.0
+numpy==2.2.1
+psycopg2-binary==2.9.10
+sqlalchemy==2.0.36
+python-dotenv==1.0.1
+redis==5.2.1
+cloudinary==1.41.0
 
 # Remove these heavy packages:
 # tensorflow (200MB+) 
