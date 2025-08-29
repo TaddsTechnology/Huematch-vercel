@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "ai-fashion-app",
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "frontend/dist"
+      }
+    },
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))$",
+      "dest": "/frontend/dist/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/index.html"
+    }
+  ],
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.9",
+      "maxDuration": 10
+    }
+  },
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "cd frontend && npm install",
+  "framework": null,
+  "regions": ["iad1"]
+}

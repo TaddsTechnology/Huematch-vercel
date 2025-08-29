@@ -42,10 +42,20 @@ export default defineConfig({
     global: 'globalThis',
   },
   build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
+    target: 'es2015',
     commonjsOptions: {
       include: [/node_modules/],
     },
     rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom']
+        }
+      },
       onwarn(warning, warn) {
         // Suppress specific warnings
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;

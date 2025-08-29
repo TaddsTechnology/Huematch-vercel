@@ -1,10 +1,30 @@
-// API Configuration - Updated for production
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-fashion-backend-d9nj.onrender.com';
+// API Configuration - Updated for Vercel deployment
+const isDevelopment = import.meta.env.DEV;
+const isLocalhost = window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
 
-// PostgreSQL Database Configuration - This should be handled by backend only
-// export const DATABASE_URL = 'moved to backend environment variables';
+// Determine API base URL based on environment
+export const API_BASE_URL = (() => {
+  // Check for explicit environment variable first
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In development, use localhost backend
+  if (isDevelopment && isLocalhost) {
+    return 'http://localhost:10000';
+  }
+  
+  // In production on Vercel, use relative API paths
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  
+  // Fallback to Render backend
+  return 'https://ai-fashion-backend-d9nj.onrender.com';
+})();
 
 console.log('API_BASE_URL:', API_BASE_URL);
+console.log('Environment:', { isDevelopment, isLocalhost });
 
 // API endpoints
 export const API_ENDPOINTS = {
