@@ -1,11 +1,8 @@
-# Vercel-optimized Python dependencies
+# Vercel-optimized lightweight dependencies
 fastapi==0.104.1
-pydantic==2.5.0
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
 requests==2.31.0
 numpy==1.24.3
-opencv-python-headless==4.8.1.78
 Pillow==10.1.0
 webcolors==1.13
-pandas==2.1.4

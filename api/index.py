@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Query, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-import pandas as pd
+# import pandas as pd  # Removed for Vercel compatibility
 import json
 import math
 import os
 from typing import List, Optional, Dict
 import numpy as np
-import cv2
+# import cv2  # Removed for Vercel compatibility
 from webcolors import hex_to_rgb, rgb_to_hex
 import io
 from PIL import Image
