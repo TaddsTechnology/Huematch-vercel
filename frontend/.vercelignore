@@ -68,3 +68,14 @@ coverage/
 ../runtime.txt
 ../.env
 ../README.md
+
+# Python files and directories
+**/*.py
+**/__pycache__/
+**/venv/
+**/env/
+api/
+requirements.txt
+runtime.txt
+main.py
+*.py
