@@ -1,4 +1,4 @@
-# Python 3.13.4 optimized requirements with full ML stack
+# Python 3.11.9 optimized requirements with full ML stack
 # Core FastAPI and web framework
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
@@ -8,41 +8,41 @@ pydantic_core==2.20.1
 python-multipart==0.0.9
 typing_extensions==4.12.2
 
-# Essential ML and image processing libraries (Python 3.13 compatible)
-numpy>=2.0.0
+# Essential ML and image processing libraries (Python 3.11.9 compatible)
+numpy==1.26.4
 opencv-python==4.10.0.84
-scikit-learn>=1.5.1
-scipy>=1.13.1
-Pillow>=10.4.0
-joblib>=1.4.2
-threadpoolctl>=3.5.0
+scikit-learn==1.5.1
+scipy==1.13.1
+Pillow==10.4.0
+joblib==1.4.2
+threadpoolctl==3.5.0
 
-# TensorFlow ecosystem (Python 3.13 compatible)
-tensorflow>=2.20.0
-keras>=3.8.0
-# tensorflow-io-gcs-filesystem - removed as it doesn't support Python 3.13
-tensorboard>=2.20.0
-tensorboard-data-server>=0.7.2
-h5py>=3.11.0
-protobuf>=4.25.4
-absl-py>=2.1.0
-astunparse>=1.6.3
-flatbuffers>=24.3.25
-gast>=0.5.4
-grpcio>=1.62.2
-libclang>=18.1.1
-ml-dtypes>=0.4.0
-opt-einsum>=3.3.0
-termcolor>=2.4.0
-wrapt>=1.16.0
+# TensorFlow ecosystem (Python 3.11.9 compatible)
+tensorflow==2.15.1
+keras==2.15.0
+tensorflow-io-gcs-filesystem==0.37.1
+tensorboard==2.15.2
+tensorboard-data-server==0.7.2
+h5py==3.11.0
+protobuf==4.25.4
+absl-py==2.1.0
+astunparse==1.6.3
+flatbuffers==24.3.25
+gast==0.5.4
+grpcio==1.62.2
+libclang==18.1.1
+ml-dtypes==0.4.0
+opt-einsum==3.3.0
+termcolor==2.4.0
+wrapt==1.16.0
 
-# MediaPipe for advanced face detection - REMOVED (no Python 3.13 support yet)
-# mediapipe>=0.10.14  # Will be re-added when Python 3.13 support is available
+# MediaPipe for advanced face detection (Python 3.11.9 compatible)
+mediapipe==0.10.14
 
 # Additional ML utilities
-pandas>=2.2.2
-matplotlib>=3.8.4
-seaborn>=0.13.2
+pandas==2.2.2
+matplotlib==3.8.4
+seaborn==0.13.2
 opencv-contrib-python==4.10.0.84
 
 # Web and networking

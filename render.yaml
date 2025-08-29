@@ -2,6 +2,6 @@
 # Go to render.com dashboard and:
 # 1. Delete existing service
 # 2. Create new Web Service  
-# 3. Select Python 3.13 environment
-# 4. Set build command: pip install -r backend/requirements.txt
+# 3. Python version will auto-detect from .python-version file (3.11.9)
+# 4. Set build command: pip install -r requirements.txt
 # 5. Set start command: uvicorn main:app --host 0.0.0.0 --port $PORT
