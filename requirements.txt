@@ -1,56 +1,102 @@
-# Python 3.13 compatible requirements for enhanced skin tone detection
+# Python 3.11.9 optimized requirements with full ML stack
 # Core FastAPI and web framework
-fastapi==0.116.1
-uvicorn==0.35.0
-starlette==0.45.3
-pydantic==2.10.6
-pydantic_core==2.27.2
-python-multipart==0.0.12
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+starlette==0.37.2
+pydantic==2.8.2
+pydantic_core==2.20.1
+python-multipart==0.0.9
 typing_extensions==4.12.2
 
-# Essential libraries for image processing and ML
-numpy>=1.26.0,<2.0.0
+# Essential ML and image processing libraries (Python 3.11.9 compatible)
+numpy==1.26.4
 opencv-python==4.10.0.84
-scikit-learn>=1.4.0
-scipy>=1.11.0
-Pillow>=10.0.0
-joblib>=1.3.0
-threadpoolctl>=3.2.0
+scikit-learn==1.5.1
+scipy==1.13.1
+Pillow==10.4.0
+joblib==1.4.2
+threadpoolctl==3.5.0
 
-# MediaPipe for advanced face detection (Python 3.13 compatible version)
-# Note: MediaPipe may need to be installed separately if not available for Python 3.13
-# mediapipe>=0.10.0
+# TensorFlow ecosystem (Python 3.11.9 compatible)
+tensorflow==2.15.1
+keras==2.15.0
+tensorflow-io-gcs-filesystem==0.37.1
+tensorboard==2.15.2
+tensorboard-data-server==0.7.2
+h5py==3.11.0
+protobuf==4.25.4
+absl-py==2.1.0
+astunparse==1.6.3
+flatbuffers==24.3.25
+gast==0.5.4
+google-pasta==0.2.0
+grpcio==1.62.2
+libclang==18.1.1
+ml-dtypes==0.4.0
+opt-einsum==3.3.0
+termcolor==2.4.0
+wrapt==1.16.0
+
+# MediaPipe for advanced face detection (Python 3.11.9 compatible)
+mediapipe==0.10.14
+
+# Additional ML utilities
+pandas==2.2.2
+matplotlib==3.8.4
+seaborn==0.13.2
+opencv-contrib-python==4.10.0.84
 
 # Web and networking
 requests==2.32.3
-certifi>=2024.0.0
-charset-normalizer>=3.3.0
-idna>=3.6
-urllib3>=1.26.0,<3.0.0
+certifi==2024.7.4
+charset-normalizer==3.3.2
+idna==3.7
+urllib3==2.2.2
+httpx==0.27.0
 
 # Database and storage
 psycopg2-binary==2.9.9
-sqlalchemy==2.0.23
-alembic==1.13.1
+sqlalchemy==2.0.31
+alembic==1.13.2
 asyncpg==0.29.0
-redis==5.0.1
+redis==5.0.7
 aioredis==2.0.1
 
 # Cloud services
-cloudinary==1.40.0
-sentry-sdk[fastapi]==1.45.0
+cloudinary==1.36.0
+sentry-sdk[fastapi]==2.8.0
 
-# Utilities
-python-dotenv==1.0.1
-webcolors>=24.0.0
-psutil>=5.9.0
-click>=8.1.0
-colorama>=0.4.6
-rich>=13.0.0
-tqdm>=4.65.0
+# Rate limiting and security
 slowapi==0.1.9
+bcrypt==4.1.3
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# Utilities and support
+python-dotenv==1.0.1
+webcolors==24.6.0
+psutil==6.0.0
+click==8.1.7
+colorama==0.4.6
+rich==13.7.1
+tqdm==4.66.4
+anyio==4.4.0
+sniffio==1.3.1
+
+# File handling and validation
+aiofiles==24.1.0
+filetype==1.2.0
+magic==0.4.27
 
 # Development and testing
-setuptools>=68.0.0
-wheel>=0.41.0
-packaging>=23.0
+setuptools==70.3.0
+wheel==0.43.0
+packaging==24.1
+six==1.16.0
+markdown==3.6
+markdown-it-py==3.0.0
+mdurl==0.1.2
+MarkupSafe==2.1.5
+Pygments==2.18.0
+beautifulsoup4==4.12.3
+soupsieve==2.5
