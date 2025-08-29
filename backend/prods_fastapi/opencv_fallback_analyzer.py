@@ -169,21 +169,31 @@ class OpenCVFallbackAnalyzer:
                     region = face_image[y:y+rh, x:x+rw]
                     
                     if region.size > 50:  # Ensure enough pixels
-                        # Improved skin color filtering in YCbCr space
+                        # Improved skin color filtering in YCbCr space - optimized for light skin
                         region_ycbcr = cv2.cvtColor(region, cv2.COLOR_RGB2YCrCb)
                         
-                        # Enhanced skin color range for better detection
-                        lower_skin = np.array([0, 130, 75])
-                        upper_skin = np.array([255, 175, 130])
+                        # Enhanced skin color range specifically for light/fair skin tones
+                        lower_skin = np.array([0, 125, 70])  # More inclusive for light skin
+                        upper_skin = np.array([255, 180, 135])  # Extended range for fair tones
                         
                         skin_mask = cv2.inRange(region_ycbcr, lower_skin, upper_skin)
                         
-                        # Additional filtering by RGB ratios
+                        # Improved RGB filtering for light skin detection
                         r, g, b = cv2.split(region)
-                        rgb_mask = (r > g) & (g > b) & (r > 60) & (g > 40) & (b > 20)
+                        
+                        # More inclusive RGB ratios for light skin
+                        rgb_mask = (
+                            (r >= g) & (g >= b) &  # Basic skin tone ratios
+                            (r > 100) & (g > 80) & (b > 60) &  # Light skin thresholds
+                            (r < 255) & (g < 255) & (b < 255)  # Avoid overexposure
+                        )
+                        
+                        # For very light skin, also include pixels with high overall brightness
+                        brightness_mask = (r + g + b) > 450  # Very bright pixels
+                        light_skin_mask = rgb_mask | brightness_mask
                         
                         # Combine masks
-                        combined_mask = cv2.bitwise_and(skin_mask, rgb_mask.astype(np.uint8) * 255)
+                        combined_mask = cv2.bitwise_and(skin_mask, light_skin_mask.astype(np.uint8) * 255)
                         
                         if np.sum(combined_mask > 0) > 30:  # Enough skin pixels
                             skin_pixels = region[combined_mask > 0]

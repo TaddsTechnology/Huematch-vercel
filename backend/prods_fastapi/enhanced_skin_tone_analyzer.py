@@ -274,17 +274,19 @@ class EnhancedSkinToneAnalyzer:
             gray = cv2.cvtColor(rgb_corrected, cv2.COLOR_RGB2GRAY)
             mean_brightness = np.mean(gray)
             
-            # Improved gamma correction for all skin tones
+            # Improved gamma correction optimized for light skin tones
             if mean_brightness < 70:  # Very dark image/skin
                 gamma = 1.4  # Brighten significantly for very dark skin
             elif mean_brightness < 120:  # Dark skin
                 gamma = 1.2  # Moderate brightening for dark skin
             elif mean_brightness < 160:  # Medium skin
                 gamma = 1.0  # No correction needed
-            elif mean_brightness < 200:  # Light skin
-                gamma = 0.9  # Slight darkening
-            else:  # Very light/fair skin (>200)
-                gamma = 0.8  # More aggressive darkening for overexposed fair skin
+            elif mean_brightness < 180:  # Light skin
+                gamma = 0.95  # Very gentle adjustment to preserve light tones
+            elif mean_brightness < 220:  # Very light/fair skin
+                gamma = 0.9  # Minimal darkening for fair skin
+            else:  # Extremely light/overexposed (>220)
+                gamma = 0.85  # Conservative darkening for overexposed fair skin
             
             if gamma != 1.0:
                 rgb_corrected = np.power(rgb_corrected / 255.0, gamma) * 255.0
@@ -316,17 +318,31 @@ class EnhancedSkinToneAnalyzer:
                 region = face_image[y:y+rh, x:x+rw]
                 
                 if region.size > 100:  # Ensure enough pixels
-                    # Use skin color filtering in YCbCr space
+                    # Enhanced skin color filtering optimized for light skin tones
                     region_ycbcr = cv2.cvtColor(region, cv2.COLOR_RGB2YCrCb)
                     
-                    # Skin color range in YCbCr
-                    lower_skin = np.array([0, 133, 77])
-                    upper_skin = np.array([255, 173, 127])
+                    # Expanded skin color range in YCbCr for better light skin detection
+                    lower_skin = np.array([0, 125, 70])  # More inclusive for light skin
+                    upper_skin = np.array([255, 180, 135])  # Extended upper range
                     
                     skin_mask = cv2.inRange(region_ycbcr, lower_skin, upper_skin)
                     
-                    if np.sum(skin_mask > 0) > 50:  # Enough skin pixels
-                        skin_pixels = region[skin_mask > 0]
+                    # Additional RGB-based filtering for very light skin
+                    r, g, b = cv2.split(region)
+                    rgb_brightness = r + g + b
+                    
+                    # Create a mask for very bright pixels (potential light skin)
+                    bright_skin_mask = (
+                        (rgb_brightness > 450) & 
+                        (r >= g) & (g >= b) &  # Basic skin tone ratios
+                        (r > 150) & (g > 120) & (b > 100)  # Light skin thresholds
+                    )
+                    
+                    # Combine YCbCr and RGB-based masks
+                    combined_mask = skin_mask | (bright_skin_mask.astype(np.uint8) * 255)
+                    
+                    if np.sum(combined_mask > 0) > 30:  # Enough skin pixels
+                        skin_pixels = region[combined_mask > 0]
                         if len(skin_pixels) > 10:
                             region_color = np.mean(skin_pixels, axis=0)
                             region_colors.append(region_color)
