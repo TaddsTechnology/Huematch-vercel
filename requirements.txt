@@ -12,7 +12,6 @@ typing_extensions==4.12.2
 numpy==1.26.4
 opencv-python==4.10.0.84
 scikit-learn==1.5.1
-scipy==1.13.1
 Pillow==10.4.0
 joblib==1.4.2
 threadpoolctl==3.5.0
