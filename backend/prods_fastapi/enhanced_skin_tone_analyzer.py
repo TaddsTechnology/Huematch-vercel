@@ -8,7 +8,13 @@ try:
 except ImportError:
     dlib = None
     DLIB_AVAILABLE = False
-import mediapipe as mp
+
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    mp = None
+    MEDIAPIPE_AVAILABLE = False
 from sklearn.cluster import KMeans
 from scipy import stats
 import logging
@@ -23,8 +29,16 @@ class EnhancedSkinToneAnalyzer:
     def __init__(self):
         """Initialize the enhanced skin tone analyzer with multiple detection methods."""
         # MediaPipe face detection
-        self.mp_face_detection = mp.solutions.face_detection
-        self.mp_face_mesh = mp.solutions.face_mesh
+        if MEDIAPIPE_AVAILABLE:
+            self.mp_face_detection = mp.solutions.face_detection
+            self.mp_face_mesh = mp.solutions.face_mesh
+            self.mediapipe_available = True
+            logger.info("MediaPipe initialized successfully")
+        else:
+            self.mp_face_detection = None
+            self.mp_face_mesh = None
+            self.mediapipe_available = False
+            logger.warning("MediaPipe not available, using OpenCV fallback methods")
         
         # Face recognition library removed to avoid compilation issues
         self.face_recognition_available = False
@@ -48,9 +62,21 @@ class EnhancedSkinToneAnalyzer:
             self.dlib_predictor = None
             self.dlib_available = False
             logger.info("Dlib not installed, using other methods for face detection")
+        
+        # OpenCV Haar cascade fallback (always available with OpenCV)
+        try:
+            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            self.opencv_available = True
+            logger.info("OpenCV Haar cascades initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenCV cascades: {e}")
+            self.opencv_available = False
     
     def detect_face_mediapipe(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
         """Detect face using MediaPipe and return bounding box."""
+        if not self.mediapipe_available:
+            return None
+            
         try:
             with self.mp_face_detection.FaceDetection(
                 model_selection=1, min_detection_confidence=0.7) as face_detection:
@@ -142,17 +168,81 @@ class EnhancedSkinToneAnalyzer:
         
         return None
     
+    def detect_face_opencv(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+        """Detect face using OpenCV Haar cascades and return bounding box."""
+        if not self.opencv_available:
+            return None
+            
+        try:
+            # Convert to grayscale for cascade detection
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            
+            # Detect faces with optimized parameters
+            faces = self.face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(50, 50),
+                flags=cv2.CASCADE_SCALE_IMAGE
+            )
+            
+            if len(faces) > 0:
+                # Use the largest face found
+                face = max(faces, key=lambda f: f[2] * f[3])
+                x, y, w, h = face
+                
+                # Add padding for better skin region
+                padding = 0.15
+                x = max(0, int(x - w * padding))
+                y = max(0, int(y - h * padding))
+                w = min(image.shape[1] - x, int(w * (1 + 2 * padding)))
+                h = min(image.shape[0] - y, int(h * (1 + 2 * padding)))
+                
+                return (x, y, w, h)
+                
+        except Exception as e:
+            logger.warning(f"OpenCV face detection failed: {e}")
+        
+        return None
+    
+    def detect_face_center_fallback(self, image: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+        """Fallback method that assumes face is in center of image."""
+        try:
+            h, w = image.shape[:2]
+            
+            # Assume face is in the center 60% of the image
+            face_w = int(w * 0.6)
+            face_h = int(h * 0.6)
+            x = int((w - face_w) / 2)
+            y = int((h - face_h) / 2)
+            
+            return (x, y, face_w, face_h)
+        except Exception as e:
+            logger.warning(f"Center fallback detection failed: {e}")
+            return None
+    
     def detect_face(self, image: np.ndarray) -> Optional[np.ndarray]:
         """Detect face using multiple methods and return face region."""
-        # Try MediaPipe first (most reliable and no compilation issues)
+        # Try MediaPipe first (most reliable when available)
         bbox = self.detect_face_mediapipe(image)
+        
+        # Fallback to OpenCV Haar cascades
+        if bbox is None:
+            logger.info("MediaPipe detection failed, trying OpenCV cascades")
+            bbox = self.detect_face_opencv(image)
         
         # Fallback to Dlib
         if bbox is None:
+            logger.info("OpenCV detection failed, trying Dlib")
             bbox = self.detect_face_dlib(image)
         
+        # Ultimate fallback to center detection
         if bbox is None:
-            logger.warning("No face detected with any method")
+            logger.info("All detection methods failed, using center fallback")
+            bbox = self.detect_face_center_fallback(image)
+        
+        if bbox is None:
+            logger.warning("All face detection methods failed")
             return None
         
         x, y, w, h = bbox
