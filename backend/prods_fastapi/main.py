@@ -23,6 +23,7 @@ import asyncio
 # Using MediaPipe and OpenCV for face detection instead
 from enhanced_skin_tone_analyzer import EnhancedSkinToneAnalyzer
 from opencv_fallback_analyzer import OpenCVFallbackAnalyzer
+from improved_light_skin_analyzer import ImprovedLightSkinAnalyzer
 
 # Import services
 from services.cloudinary_service import cloudinary_service
@@ -73,6 +74,7 @@ from datetime import datetime
 # Initialize enhanced skin tone analyzer and fallback
 enhanced_analyzer = EnhancedSkinToneAnalyzer()
 opencv_fallback_analyzer = OpenCVFallbackAnalyzer()
+improved_light_skin_analyzer = ImprovedLightSkinAnalyzer()
 
 # Initialize database on startup
 try:
@@ -92,8 +94,8 @@ limiter = Limiter(key_func=get_remote_address)
 # Create FastAPI app
 app = FastAPI(
     title="AI Fashion Backend",
-    version="1.0.1",  # Updated version to trigger redeploy
-    description="AI Fashion recommendation system with skin tone analysis"
+    version="1.1.0",  # Updated with improved light skin analysis
+    description="AI Fashion recommendation system with enhanced skin tone analysis for light skin tones"
 )
 
 # Add rate limiting middleware
@@ -946,8 +948,25 @@ async def analyze_skin_tone(request: Request, file: UploadFile = File(...)):
         except Exception as e:
             logger.warning(f"Failed to store image in Cloudinary: {e}")
 
-        # Try enhanced analyzer first
-        logger.info("🎯 Starting skin tone analysis with enhanced analyzer...")
+        # Step 1: Try improved light skin analyzer first (optimized for fair skin tones)
+        logger.info("🌟 Starting skin tone analysis with improved light skin analyzer...")
+        try:
+            result = improved_light_skin_analyzer.analyze_skin_tone_improved(image_array, MONK_SKIN_TONES)
+            if result['success']:
+                logger.info(f"✅ Improved light skin analyzer result: {result['monk_tone_display']} (confidence: {result['confidence']})")
+                logger.info(f"📊 Dominant RGB: {result['dominant_rgb']}, Method: {result.get('analysis_method', 'improved_light_skin')}")
+                # Add Cloudinary URL to response if upload was successful
+                if upload_result and upload_result.get('success'):
+                    result['cloudinary_url'] = upload_result.get('url')
+                    result['image_public_id'] = upload_result.get('public_id')
+                return result
+            else:
+                logger.warning(f"❌ Improved light skin analyzer failed: {result.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.warning(f"❌ Improved light skin analysis exception: {e}, trying enhanced analyzer")
+        
+        # Step 2: Try enhanced analyzer as fallback
+        logger.info("🎯 Trying enhanced analyzer...")
         try:
             result = enhanced_analyzer.analyze_skin_tone(image_array, MONK_SKIN_TONES)
             if result['success']:
