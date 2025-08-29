@@ -946,29 +946,39 @@ async def analyze_skin_tone(request: Request, file: UploadFile = File(...)):
             logger.warning(f"Failed to store image in Cloudinary: {e}")
 
         # Try enhanced analyzer first
+        logger.info("🎯 Starting skin tone analysis with enhanced analyzer...")
         try:
             result = enhanced_analyzer.analyze_skin_tone(image_array, MONK_SKIN_TONES)
             if result['success']:
+                logger.info(f"✅ Enhanced analyzer result: {result['monk_tone_display']} (confidence: {result['confidence']})")
+                logger.info(f"📊 Dominant RGB: {result['dominant_rgb']}, Method: {result.get('analysis_method', 'enhanced')}")
                 # Add Cloudinary URL to response if upload was successful
                 if upload_result and upload_result.get('success'):
                     result['cloudinary_url'] = upload_result.get('url')
                     result['image_public_id'] = upload_result.get('public_id')
                 return result
+            else:
+                logger.warning(f"❌ Enhanced analyzer failed: {result.get('error', 'Unknown error')}")
         except Exception as e:
-            logger.warning(f"Enhanced analysis failed: {e}, trying OpenCV fallback analyzer")
+            logger.warning(f"❌ Enhanced analysis exception: {e}, trying OpenCV fallback analyzer")
         
         # Try OpenCV fallback analyzer
+        logger.info("🔄 Trying OpenCV fallback analyzer...")
         try:
             result = opencv_fallback_analyzer.analyze_skin_tone(image_array, MONK_SKIN_TONES)
             if result['success']:
+                logger.info(f"✅ Fallback analyzer result: {result['monk_tone_display']} (confidence: {result['confidence']})")
+                logger.info(f"📊 Dominant RGB: {result['dominant_rgb']}, Regions: {result.get('regions_analyzed', 0)}")
                 # Add Cloudinary URL to response if upload was successful
                 if upload_result and upload_result.get('success'):
                     result['cloudinary_url'] = upload_result.get('url')
                     result['image_public_id'] = upload_result.get('public_id')
-                logger.info("Successfully used OpenCV fallback analyzer")
+                logger.info("✅ Successfully used OpenCV fallback analyzer")
                 return result
+            else:
+                logger.warning(f"❌ Fallback analyzer failed: {result.get('error', 'Unknown error')}")
         except Exception as opencv_e:
-            logger.warning(f"OpenCV fallback analysis also failed: {opencv_e}")
+            logger.warning(f"❌ OpenCV fallback analysis exception: {opencv_e}")
             
         # Fallback - get a random monk tone from database
         try:
