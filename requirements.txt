@@ -1,20 +1,17 @@
-# Lightweight requirements for 512MB Render free tier
-setuptools>=65.0.0
-wheel
-fastapi==0.104.1
-uvicorn==0.24.0
-pydantic==2.5.0
-python-multipart==0.0.12
-requests==2.31.0
-webcolors==1.13
-Pillow==10.1.0
+# Python 3.9 compatible requirements
+fastapi==0.95.2
+uvicorn==0.21.1
+pydantic==1.10.7
+python-multipart==0.0.6
+requests==2.28.2
+webcolors==1.12
+Pillow==9.5.0
 numpy==1.24.3
-psycopg2-binary==2.9.9
-sqlalchemy==2.0.23
-python-dotenv==1.0.1
-redis==5.0.1
-aioredis==2.0.1
-cloudinary==1.40.0
+psycopg2-binary==2.9.6
+sqlalchemy==1.4.48
+python-dotenv==1.0.0
+redis==4.5.5
+cloudinary==1.33.0
 
 # Remove these heavy packages:
 # tensorflow (200MB+) 
