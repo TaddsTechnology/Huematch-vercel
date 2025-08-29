@@ -8,19 +8,20 @@ pydantic_core==2.20.1
 python-multipart==0.0.9
 typing_extensions==4.12.2
 
-# Essential ML and image processing libraries (Python 3.11.9 compatible)
-numpy==1.26.4
+# Essential ML and image processing libraries (Python 3.13 compatible)
+numpy==1.26.1
 opencv-python==4.10.0.84
 scikit-learn==1.5.1
+scipy==1.13.1
 Pillow==10.4.0
 joblib==1.4.2
 threadpoolctl==3.5.0
 
-# TensorFlow ecosystem (Python 3.11.9 compatible)
-tensorflow==2.15.1
-keras==2.15.0
+# TensorFlow ecosystem (Python 3.13 compatible)
+tensorflow==2.20.0
+keras==3.8.0
 tensorflow-io-gcs-filesystem==0.37.1
-tensorboard==2.15.2
+tensorboard==2.20.0
 tensorboard-data-server==0.7.2
 h5py==3.11.0
 protobuf==4.25.4
@@ -28,7 +29,6 @@ absl-py==2.1.0
 astunparse==1.6.3
 flatbuffers==24.3.25
 gast==0.5.4
-google-pasta==0.2.0
 grpcio==1.62.2
 libclang==18.1.1
 ml-dtypes==0.4.0
