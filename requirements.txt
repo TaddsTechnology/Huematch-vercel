@@ -20,21 +20,22 @@ threadpoolctl==3.5.0
 # TensorFlow ecosystem (Python 3.11.9 compatible)
 tensorflow==2.15.1
 keras==2.15.0
-tensorflow-io-gcs-filesystem==0.37.1
-tensorboard==2.15.2
-tensorboard-data-server==0.7.2
-h5py==3.11.0
-protobuf==4.25.4
-absl-py==2.1.0
-astunparse==1.6.3
-flatbuffers==24.3.25
-gast==0.5.4
-grpcio==1.62.2
-libclang==18.1.1
-ml-dtypes~=0.3.1
-opt-einsum==3.3.0
-termcolor==2.4.0
-wrapt==1.16.0
+# Let TensorFlow manage its own dependencies to avoid conflicts
+# tensorflow-io-gcs-filesystem==0.37.1
+# tensorboard==2.15.2
+# tensorboard-data-server==0.7.2
+# h5py==3.11.0
+# protobuf==4.25.4
+# absl-py==2.1.0
+# astunparse==1.6.3
+# flatbuffers==24.3.25
+# gast==0.5.4
+# grpcio==1.62.2
+# libclang==18.1.1
+# ml-dtypes~=0.3.1
+# opt-einsum==3.3.0
+# termcolor==2.4.0
+# wrapt>=1.11.0,<1.15
 
 # MediaPipe for advanced face detection (Python 3.11.9 compatible)
 mediapipe==0.10.14
