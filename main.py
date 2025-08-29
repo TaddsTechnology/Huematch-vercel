@@ -16,6 +16,11 @@ import logging
 import random
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+import redis
+import json
+import cloudinary
+import cloudinary.uploader
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -87,6 +92,20 @@ def get_monk_skin_tones():
 
 # Initialize monk tones
 MONK_SKIN_TONES = get_monk_skin_tones()
+
+# Redis connection
+def get_redis_client():
+    """Get Redis client - graceful fallback if not available."""
+    try:
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            return redis.from_url(redis_url, decode_responses=True)
+        return None
+    except Exception as e:
+        logger.warning(f"Redis unavailable: {e}")
+        return None
+
+redis_client = get_redis_client()
 
 @app.get("/")
 def home():
@@ -317,7 +336,7 @@ def simple_skin_analysis(image_array: np.ndarray) -> Dict:
 
 @app.post("/analyze-skin-tone")
 async def analyze_skin_tone(file: UploadFile = File(...)):
-    """Lightweight skin tone analysis."""
+    """Lightweight skin tone analysis with Cloudinary upload."""
     try:
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
@@ -332,8 +351,31 @@ async def analyze_skin_tone(file: UploadFile = File(...)):
         # Convert to numpy array
         image_array = np.array(image)
         
+        # Upload to Cloudinary (optional)
+        cloudinary_url = None
+        try:
+            cloudinary_url_env = os.getenv("CLOUDINARY_URL")
+            if cloudinary_url_env:
+                # Upload image to Cloudinary
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                upload_result = cloudinary.uploader.upload(
+                    image_data,
+                    folder="ai-fashion/skin-analysis",
+                    public_id=f"skin_analysis_{timestamp}",
+                    resource_type="image"
+                )
+                cloudinary_url = upload_result.get("secure_url")
+                logger.info(f"Image uploaded to Cloudinary: {cloudinary_url}")
+        except Exception as e:
+            logger.warning(f"Cloudinary upload failed: {e}")
+        
         # Analyze (lightweight)
         result = simple_skin_analysis(image_array)
+        
+        # Add Cloudinary URL to result
+        if cloudinary_url:
+            result['uploaded_image_url'] = cloudinary_url
+        
         return result
         
     except Exception as e:

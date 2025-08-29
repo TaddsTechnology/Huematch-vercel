@@ -1,15 +1,17 @@
+# Docker ignore file - keep builds lightweight
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .Python
-env
+env/
+venv/
+.venv
 pip-log.txt
 pip-delete-this-directory.txt
 .tox
 .coverage
-.coverage.*
-.cache
+.pytest_cache
 nosetests.xml
 coverage.xml
 *.cover
@@ -19,23 +21,14 @@ coverage.xml
 .pytest_cache
 .hypothesis
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
 # Project specific
+backend/
+frontend/node_modules/
+frontend/dist/
 *.md
-.gitignore
-setup_color_database.py
-consolidate_colors.py
+*.ps1
+api/
+.env*
+*.json
+*.yml
+*.yaml

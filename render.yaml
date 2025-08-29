@@ -1,28 +1,24 @@
 services:
   - type: web
     name: ai-fashion-backend
-    runtime: docker
-    image:
-      url: docker.io/newbie028/ai-fashion-backend:latest
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
     envVars:
-      - key: ENVIRONMENT
-        value: production
+      - key: PYTHON_VERSION
+        value: "3.9.18"
       - key: DATABASE_URL
-        fromDatabase:
-          name: fashion-db
-          property: connectionString
+        value: "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
       - key: REDIS_URL
         fromService:
           type: redis
-          name: fashion-redis
+          name: ai-fashion-redis
           property: connectionString
-    healthCheckPath: /health
+      - key: CLOUDINARY_URL
+        sync: false  # You'll set this manually in Render dashboard
 
   - type: redis
-    name: fashion-redis
+    name: ai-fashion-redis
     plan: starter
-
-databases:
-  - name: fashion-db
-    databaseName: fashion_jvy9
-    user: fashion_jvy9_user

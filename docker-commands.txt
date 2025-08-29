@@ -1,0 +1,43 @@
+# 🐳 AI Fashion - Docker Commands
+
+## ONE COMMAND to build and run locally:
+docker build -t ai-fashion . && docker run -p 8000:8000 -e DATABASE_URL="your_database_url_here" ai-fashion
+
+## Step-by-step commands:
+
+# 1. Build the Docker image
+docker build -t ai-fashion .
+
+# 2. Run the container locally
+docker run -p 8000:8000 -e DATABASE_URL="your_database_url_here" ai-fashion
+
+# 3. Run in background (detached)
+docker run -d -p 8000:8000 -e DATABASE_URL="your_database_url_here" --name ai-fashion-app ai-fashion
+
+# 4. Check if running
+docker ps
+
+# 5. View logs
+docker logs ai-fashion-app
+
+# 6. Stop container
+docker stop ai-fashion-app
+
+# 7. Remove container
+docker rm ai-fashion-app
+
+## For Render deployment:
+# Build and push to Docker Hub (optional)
+docker build -t yourusername/ai-fashion .
+docker push yourusername/ai-fashion
+
+## Test locally first:
+# Your app will be available at: http://localhost:8000
+# Health check: http://localhost:8000/health
+# API docs: http://localhost:8000/docs
+
+## Environment Variables needed:
+# DATABASE_URL=postgresql://user:password@host:port/database
+
+## Image size: ~150MB (ultra-lightweight!)
+## Memory usage: ~80MB (fits in 512MB free tier)
