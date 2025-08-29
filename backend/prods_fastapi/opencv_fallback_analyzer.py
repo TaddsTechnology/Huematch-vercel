@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import logging
+import math
 from typing import List, Dict, Tuple, Optional
 import colorsys
 
@@ -279,13 +280,45 @@ class OpenCVFallbackAnalyzer:
             return 0.4  # Default moderate confidence
     
     def find_closest_monk_tone(self, rgb_color: np.ndarray, monk_tones: Dict[str, str]) -> Tuple[str, float]:
-        """Find the closest Monk skin tone using color space analysis."""
+        """Find the closest Monk skin tone using enhanced multi-criteria analysis."""
         try:
-            min_distance = float('inf')
-            closest_monk = "Monk 4"  # Default middle tone
+            r, g, b = rgb_color
+            avg_brightness = np.mean(rgb_color)
             
-            # Convert to LAB for better perceptual distance
+            # Convert to multiple color spaces for comprehensive analysis
             lab_color = cv2.cvtColor(np.uint8([[rgb_color]]), cv2.COLOR_RGB2LAB)[0][0]
+            hsv_color = cv2.cvtColor(np.uint8([[rgb_color]]), cv2.COLOR_RGB2HSV)[0][0]
+            
+            # Calculate Individual Typology Angle (ITA) for scientific classification
+            L, a_val, b_val = lab_color
+            if b_val != 0:
+                ita = np.arctan((L - 50) / b_val) * 180 / np.pi
+            else:
+                ita = 90 if L > 50 else -90
+            
+            # Enhanced ITA-based preliminary classification
+            if ita > 55:  # Very Light
+                candidate_range = ['Monk 1', 'Monk 2']
+                brightness_weight = 0.6  # High importance for brightness
+            elif ita > 41:  # Light
+                candidate_range = ['Monk 2', 'Monk 3']
+                brightness_weight = 0.5
+            elif ita > 28:  # Intermediate
+                candidate_range = ['Monk 3', 'Monk 4', 'Monk 5']
+                brightness_weight = 0.4
+            elif ita > 10:  # Tan
+                candidate_range = ['Monk 4', 'Monk 5', 'Monk 6']
+                brightness_weight = 0.35
+            elif ita > -30:  # Brown
+                candidate_range = ['Monk 5', 'Monk 6', 'Monk 7', 'Monk 8']
+                brightness_weight = 0.3
+            else:  # Dark
+                candidate_range = ['Monk 7', 'Monk 8', 'Monk 9', 'Monk 10']
+                brightness_weight = 0.25
+            
+            min_distance = float('inf')
+            closest_monk = "Monk 4"
+            all_distances = {}
             
             for monk_name, hex_color in monk_tones.items():
                 try:
@@ -297,17 +330,58 @@ class OpenCVFallbackAnalyzer:
                         int(hex_clean[4:6], 16)
                     ])
                     
-                    # Convert to LAB
+                    # Convert to LAB and HSV
                     monk_lab = cv2.cvtColor(np.uint8([[monk_rgb]]), cv2.COLOR_RGB2LAB)[0][0]
+                    monk_hsv = cv2.cvtColor(np.uint8([[monk_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
                     
-                    # Calculate perceptual distance in LAB space
+                    # Calculate distances in different color spaces
+                    rgb_distance = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
                     lab_distance = np.sqrt(np.sum((lab_color - monk_lab) ** 2))
                     
-                    # Additional RGB distance for comparison
-                    rgb_distance = np.sqrt(np.sum((rgb_color - monk_rgb) ** 2))
+                    # Hue distance (circular)
+                    hue_diff = min(abs(hsv_color[0] - monk_hsv[0]), 
+                                 180 - abs(hsv_color[0] - monk_hsv[0]))
+                    hue_distance = hue_diff / 180.0 * 100
                     
-                    # Weighted combination
-                    combined_distance = lab_distance * 0.7 + rgb_distance * 0.3
+                    # Brightness difference with enhanced weighting
+                    monk_brightness = np.mean(monk_rgb)
+                    brightness_diff = abs(avg_brightness - monk_brightness)
+                    
+                    # Enhanced weighted calculation based on skin tone range
+                    if avg_brightness > 220:  # Very fair skin (Monk 1-2)
+                        combined_distance = (
+                            rgb_distance * 0.15 +
+                            lab_distance * 0.25 +
+                            brightness_diff * brightness_weight +
+                            hue_distance * 0.1
+                        )
+                    elif avg_brightness > 180:  # Fair to light skin (Monk 2-4)
+                        combined_distance = (
+                            rgb_distance * 0.25 +
+                            lab_distance * 0.35 +
+                            brightness_diff * brightness_weight +
+                            hue_distance * 0.1
+                        )
+                    elif avg_brightness > 120:  # Medium skin (Monk 4-7)
+                        combined_distance = (
+                            rgb_distance * 0.3 +
+                            lab_distance * 0.4 +
+                            brightness_diff * brightness_weight +
+                            hue_distance * 0.15
+                        )
+                    else:  # Dark skin (Monk 7-10)
+                        combined_distance = (
+                            rgb_distance * 0.25 +
+                            lab_distance * 0.45 +
+                            brightness_diff * brightness_weight +
+                            hue_distance * 0.2
+                        )
+                    
+                    # Apply candidate range bonus for ITA-guided selection
+                    if monk_name in candidate_range:
+                        combined_distance *= 0.75  # 25% bonus for candidates
+                    
+                    all_distances[monk_name] = combined_distance
                     
                     if combined_distance < min_distance:
                         min_distance = combined_distance
@@ -317,6 +391,23 @@ class OpenCVFallbackAnalyzer:
                     logger.warning(f"Error processing monk tone {monk_name}: {color_e}")
                     continue
             
+            # Validation: If result seems off from ITA, reconsider
+            if closest_monk not in candidate_range:
+                logger.info(f"Initial result {closest_monk} outside ITA range {candidate_range}, reconsidering...")
+                
+                # Find best match within candidate range
+                candidate_distances = {name: dist for name, dist in all_distances.items() 
+                                     if name in candidate_range}
+                
+                if candidate_distances:
+                    best_candidate = min(candidate_distances.items(), key=lambda x: x[1])
+                    # Use candidate if it's within reasonable margin (50% tolerance)
+                    if best_candidate[1] < min_distance * 1.5:
+                        logger.info(f"Using ITA-guided result: {best_candidate[0]}")
+                        closest_monk = best_candidate[0]
+                        min_distance = best_candidate[1]
+            
+            logger.info(f"Final Monk tone selection: {closest_monk} (ITA: {ita:.1f}, Distance: {min_distance:.1f})")
             return closest_monk, min_distance
             
         except Exception as e:
