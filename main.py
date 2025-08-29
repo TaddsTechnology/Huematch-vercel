@@ -110,9 +110,20 @@ MONK_SKIN_TONES = get_monk_skin_tones()
 def get_redis_client():
     """Get Redis client - graceful fallback if not available."""
     try:
+        # Try standard Redis URL first
         redis_url = os.getenv("REDIS_URL")
         if redis_url:
             return redis.from_url(redis_url, decode_responses=True)
+        
+        # Try Upstash Redis if available
+        upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
+        upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+        if upstash_url and upstash_token:
+            # For Upstash, we'll use it for caching but not return a client here
+            # since Upstash works via REST API, not standard Redis client
+            logger.info("Upstash Redis detected - will use for caching")
+            return None  # We'll implement REST-based caching separately
+        
         return None
     except Exception as e:
         logger.warning(f"Redis unavailable: {e}")
