@@ -1,2 +1,6 @@
-# Minimal dependencies for Vercel Python 3.9
-fastapi
+# Dependencies for Vercel with PostgreSQL database
+fastapi==0.68.0
+psycopg2-binary==2.9.7
+sqlalchemy==1.4.46
+requests==2.28.2
+webcolors==1.12

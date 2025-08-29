@@ -1,6 +1,8 @@
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import sys
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+import json
 import os
 import logging
 
@@ -10,19 +12,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+# Your PostgreSQL database connection
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://fashion_4vl9_user:FCxnsalymIDJ6jW06YpF6gN3ueSmXS2Q@dpg-d2ff1remcj7s73eojhsg-a.oregon-postgres.render.com/fashion_4vl9"
 )
-
-# Add backend path
-backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
-sys.path.append(backend_path)
-sys.path.append(os.path.join(backend_path, 'prods_fastapi'))
 
 @app.get("/api/color-recommendations")
 def get_color_recommendations(
@@ -30,18 +24,8 @@ def get_color_recommendations(
     hex_color: str = Query(None),
     limit: int = Query(50, ge=10, le=100)
 ):
-    """Enhanced color recommendations endpoint for Vercel."""
+    """Enhanced color recommendations endpoint using your PostgreSQL database."""
     try:
-        # Import here to handle import errors gracefully
-        from sqlalchemy import create_engine, text
-        from sqlalchemy.orm import sessionmaker
-        import json
-        
-        # Database connection
-        DATABASE_URL = os.getenv(
-            "DATABASE_URL", 
-            "postgresql://fashion_jvy9_user:0d2Nn5mvyw6KMBDT21l9olpHaxrTPEzh@dpg-d1vhvpbuibrs739dkn3g-a.oregon-postgres.render.com/fashion_jvy9"
-        )
         
         engine = create_engine(DATABASE_URL)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
